@@ -1,7 +1,7 @@
 // Copyright © 2012-2024 Forschungszentrum Jülich GmbH
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #include "CollisionFreeSpeedModelV2.hpp"
-
+#include <random> 
 #include "CollisionFreeSpeedModelV2Data.hpp"
 #include "CollisionFreeSpeedModelV2Update.hpp"
 #include "GenericAgent.hpp"
@@ -160,7 +160,9 @@ double CollisionFreeSpeedModelV2::OptimalSpeed(
     double time_gap) const
 {
     const auto& model = std::get<CollisionFreeSpeedModelV2Data>(ped.model);
-    return std::min(std::max(spacing / time_gap, 0.0), model.v0);
+    double min_spacing = -0.01; // this allows agents to move backwards to minimise clogging probablities
+    return std::min(std::max(spacing / time_gap, min_spacing
+                           ), model.v0);
 }
 
 double CollisionFreeSpeedModelV2::GetSpacing(
@@ -178,11 +180,14 @@ double CollisionFreeSpeedModelV2::GetSpacing(
 
     const auto left = direction.Rotate90Deg();
     const auto l = model1.radius + model2.radius;
+    //std::cout  << ped1.id.getID() << ": r="<< model1.radius << ", r=" << model2.radius << "\n"; // 
+    //std::cout << ped1.pos.x  << " - "  << ped2.pos.x << "\n";
+    float min_dist = l + 0.5;// TODO
     bool inCorridor = std::abs(left.ScalarProduct(distp12)) <= l;
     if(!inCorridor) {
         return std::numeric_limits<double>::max();
     }
-    return distp12.Norm() - l;
+    return distp12.Norm() - min_dist;
 }
 Point CollisionFreeSpeedModelV2::NeighborRepulsion(
     const GenericAgent& ped1,
@@ -192,9 +197,23 @@ Point CollisionFreeSpeedModelV2::NeighborRepulsion(
     const auto [distance, direction] = distp12.NormAndNormalized();
     const auto& model1 = std::get<CollisionFreeSpeedModelV2Data>(ped1.model);
     const auto& model2 = std::get<CollisionFreeSpeedModelV2Data>(ped2.model);
+    
     const auto l = model1.radius + model2.radius;
-    return direction * -(model1.strengthNeighborRepulsion *
-                         exp((l - distance) / model1.rangeNeighborRepulsion));
+    double seed = 42;
+    static std::random_device rd;
+    static std::mt19937 gen(seed);
+    std::uniform_real_distribution<> dis(-0.1, 0.1); // Small random values
+
+    Point randomVec(dis(gen), dis(gen));
+
+    auto randomizedDirection = (direction + randomVec).Normalized();
+    return randomizedDirection * -(model1.strengthNeighborRepulsion *
+                                     exp((l - distance) / model1.rangeNeighborRepulsion));
+
+
+    
+    // return direction * -(model1.strengthNeighborRepulsion *
+    //                      exp((l - distance) / model1.rangeNeighborRepulsion));
 }
 
 Point CollisionFreeSpeedModelV2::BoundaryRepulsion(
