@@ -293,7 +293,13 @@ def parse_dxf_file(
         layers_in_dxf, distribution_layers, "distribution"
     )
     # Iterate over all entities in the model
+    all_layers = (
+        hole_layers + exit_layers + distribution_layers + [outer_line_layer]
+    )
     for entity in msp:
+        # ignore layers not passed to parser
+        if entity.dxf.layer not in all_layers:
+            continue
         if entity.dxftype() == "LWPOLYLINE":
             if not entity.closed and (
                 entity.dxf.layer in hole_layers
@@ -344,7 +350,7 @@ def parse_dxf_file(
         elif entity.dxftype() != "INSERT":
             logging.warning(
                 f"there is an entity of type {entity.dxftype()} defined which "
-                f"will not be parsed."
+                f"will not be parsed. {entity.dxf.layer}"
             )
 
     # create a polygon from all outer lines
