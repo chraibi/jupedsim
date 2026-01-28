@@ -40,8 +40,28 @@ OperationalModelUpdate SocialForceModelIPP::ComputeNewPosition(
     const auto neighborhood = neighborhoodSearch.GetNeighboringAgents(ped.pos, this->_cutOffRadius);
     const auto& walls = geometry.LineSegmentsInApproxDistanceTo(ped.pos);
 
+    // Collision avoidance model: Social Forces
+    auto social_forces = DrivingForce(ped);
+    Point F_rep_agents;
+    for(const auto& neighbor : neighborhood) {
+        if(neighbor.id == ped.id) {
+            continue;
+        }
+        F_rep_agents += AgentSocialForce(ped, neighbor);
+    }
+    social_forces += F_rep_agents / (model.mass); // desactivation of social forces for the Line Pushing simulation
 
-       // Physical interactions: Contact forces
+    const auto F_social_obstacles = std::accumulate(
+        walls.cbegin(),
+        walls.cend(),
+        Point(0, 0),
+        [this, &ped](const auto& acc, const auto& element) {
+            return acc + ObstacleSocialForce(ped, element);
+        });
+    social_forces += F_social_obstacles / model.mass;
+
+
+    // Physical interactions: Contact forces
     // upper body contacts
     Point upper_body_contact_forces;
     Point F_contact_upper_body_neighbors;
@@ -71,46 +91,18 @@ OperationalModelUpdate SocialForceModelIPP::ComputeNewPosition(
         }
         F_contact_ground_support_neighbors += AgentGroundSupportContactForce(ped, neighbor);
     }
-    // ground_support_contact_forces += F_contact_ground_support_neighbors ;
+    ground_support_contact_forces += F_contact_ground_support_neighbors ;
 
     const auto F_contact_ground_support_obstacles = std::accumulate(
         walls.cbegin(),
         walls.cend(),
         Point(0, 0),
-        [this, &ped](auto acc, const auto& element) {
-            acc += ObstacleGroundSupportContactForce(ped, element);
-            return acc;
+        [this, &ped](const auto& acc, const auto& element) {
+            return acc + ObstacleGroundSupportContactForce(ped, element);
         });
     ground_support_contact_forces += F_contact_ground_support_obstacles ;
 
 
-    // Collision avoidance model: Social Forces
-    auto social_forces = DrivingForce(ped);
-    Point F_rep_agents;
-    for(const auto& neighbor : neighborhood) {
-        if(neighbor.id == ped.id) {
-            continue;
-        }
-        F_rep_agents += AgentSocialForce(ped, neighbor);
-    }
-    social_forces += F_rep_agents / model.mass;
-
-    const auto F_social_obstacles = std::accumulate(
-        walls.cbegin(),
-        walls.cend(),
-        Point(0, 0),
-        [this, &ped](const auto& acc, const auto& element) {
-            return acc + ObstacleSocialForce(ped, element);
-        });
-    social_forces += F_social_obstacles / model.mass;
-
-    // desactivation of social forces for the Line Pushing simulation
-    // social_forces = Point(0,0);
-
-
-
- 
- 
 
     if (upper_body_contact_forces.Norm() <0.01 and ground_support_contact_forces.Norm() <0.01) {
         // Locomotion mode
@@ -125,6 +117,7 @@ OperationalModelUpdate SocialForceModelIPP::ComputeNewPosition(
         // ## upper body - follows the legs
         update.velocity = model.velocity 
                                     + ( 
+                                        social_forces +
                                         (update.ground_support_position - ped.pos) * LAMBDA_LOCOMOTION_1 
                                         + (update.ground_support_velocity - model.velocity) * LAMBDA_LOCOMOTION_2
                                         - model.velocity * LAMBDA_LOCOMOTION_3
@@ -155,9 +148,8 @@ OperationalModelUpdate SocialForceModelIPP::ComputeNewPosition(
         // ## ground support - follows the upper body (balance recovery)
         update.ground_support_velocity =   model.ground_support_velocity +
                                         (   
-                                            ground_support_contact_forces
-                                            
-                                            + (update.position - model.ground_support_position) * LAMBDA_RECOVERY_1 
+                                            ground_support_contact_forces 
+                                            + (update.position - model.ground_support_position) * LAMBDA_RECOVERY_1
                                             + (update.velocity - model.ground_support_velocity) * LAMBDA_RECOVERY_2
                                             - model.ground_support_velocity * LAMBDA_RECOVERY_3
                                         )* dT;
@@ -363,10 +355,10 @@ Point SocialForceModelIPP::ContactForceBetweenPoints(
     const Point n_ij = (pt1 - pt2).Normalized();
     const Point tangent = n_ij.Rotate90Deg();
     if(dist < radiuses_sum) {
-        pushing_force_norm = std::pow(1 - (dist / radiuses_sum), 1.5);
-        // original SFM: this->bodyForce * (radiuses_sum - dist);
+        pushing_force_norm += 10000 * std::pow(1 - (dist / radiuses_sum), 1.5);
+        // original SFM: this->bodyForce * (radiuses_sum - dist); //
         friction_force_norm =
-            this->friction * (radiuses_sum - dist) * (velocity.ScalarProduct(tangent));    
+            this->friction * (radiuses_sum - dist) * (velocity.ScalarProduct(tangent));
     }
     return n_ij * pushing_force_norm + tangent * friction_force_norm;
 }
@@ -377,8 +369,5 @@ To Do:
     - Add contact between feets
     - Add gravity term during recovery phase
 
-Modif to remove:
-    - ground support radius = radius (change the scaling factor)
-    - no contact between agent at the upper body
 
 */
