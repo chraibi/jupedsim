@@ -21,13 +21,13 @@ private:
 
 public:
     // Models parameters and constants;
-    static constexpr double LAMBDA_LOCOMOTION_1 = 5; // model parameter that ajust the control on position during Locomotion phase
-    static constexpr double LAMBDA_LOCOMOTION_2 = 10; // model parameter that ajust the control on velocity during Locomotion phase
+    // static constexpr double LAMBDA_LOCOMOTION_1 = 5; // model parameter that ajust the control on position during Locomotion phase
+    static constexpr double LAMBDA_LOCOMOTION_2 = 0.5; // model parameter that ajust the control on velocity during Locomotion phase
     static constexpr double LAMBDA_LOCOMOTION_3 = 1; // model parameter that ajust the dissipation term during Locomotion phase
 
-    static constexpr double LAMBDA_RECOVERY_1 = 5; // model parameter that ajust the control on position during Recovery phase
-    static constexpr double LAMBDA_RECOVERY_2 = 2; // model parameter that ajust the control on velocity during Recovery phase
-    static constexpr double LAMBDA_RECOVERY_3 = 1; // model parameter that ajust the dissipation term during Recovery phase
+    // static constexpr double LAMBDA_RECOVERY_1 = 5; // model parameter that ajust the control on position during Recovery phase
+    static constexpr double LAMBDA_RECOVERY_2 = 1; // model parameter that ajust the control on velocity during Recovery phase
+    // static constexpr double LAMBDA_RECOVERY_3 = 1; // model parameter that ajust the dissipation term during Recovery phase
 
     // Scalin factors multiplied by the height [m] gives
     static constexpr double GS_SCALING_FACTOR = 0.26 /(2*0.3*1.65) ; // Ground support circle radius in meters. 

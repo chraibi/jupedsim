@@ -103,58 +103,29 @@ OperationalModelUpdate SocialForceModelIPP::ComputeNewPosition(
     ground_support_contact_forces += F_contact_ground_support_obstacles ;
 
 
+    // Always the same behavior in the simplest model, regardless of physical interactions or not
+    
+    // unit vector from the ground support pointing to the upper body
+    Point e_gs_ub = (ped.pos - model.ground_support_position).Normalized();
 
-    if (upper_body_contact_forces.Norm() <0.01 and ground_support_contact_forces.Norm() <0.01) {
-        // Locomotion mode
-        // The upper body follow the gorund support
-        // ## ground support 
-        update.ground_support_velocity =    model.ground_support_velocity + 
-                                        (   
-                                            social_forces
-                                        )* dT;
-        update.ground_support_position = model.ground_support_position + update.ground_support_velocity * dT;
+    // ## upper body 
+    update.velocity = model.velocity 
+                                + ( 
+                                    social_forces + upper_body_contact_forces
+                                    + ( e_gs_ub * 1 - model.velocity) * LAMBDA_LOCOMOTION_2
+                                    - model.velocity * LAMBDA_LOCOMOTION_3
+                                ) * dT;
+    update.position = ped.pos + update.velocity * dT;
 
-        // ## upper body - follows the legs
-        update.velocity = model.velocity 
-                                    + ( 
-                                        social_forces +
-                                        (update.ground_support_position - ped.pos) * LAMBDA_LOCOMOTION_1 
-                                        + (update.ground_support_velocity - model.velocity) * LAMBDA_LOCOMOTION_2
-                                        - model.velocity * LAMBDA_LOCOMOTION_3
-                                    ) * dT;
-        update.position = ped.pos + update.velocity * dT;
-
-
-
-    } else {
-        // Recovery mode
-        // The ground support follow the upper body, The contact and colision avoidance comes from the upper body
-        // ## upper body
-        // double lean_angle = atan2(Distance(ped.pos, model.ground_support_position)
-        //                         , LEG_SCALING_FACTOR * model.height);
-        // Point gravitation_force =   (ped.pos - model.ground_support_position).Normalized() 
-        //                         * model.mass * g * sin(lean_angle); 
-        // Point gravitation_force = (ped.pos - model.ground_support_position).Normalized() * model.mass * g; // Simple lineal approximation
-
-        update.velocity = model.velocity 
-                                    + ( 
-                                        social_forces
-                                        + upper_body_contact_forces
-                                        // + gravitation_force
-                                        // - model.velocity * LAMBDA_RECOVERY_3
-                                    ) * dT;
-        update.position = ped.pos + update.velocity * dT;
-
-        // ## ground support - follows the upper body (balance recovery)
-        update.ground_support_velocity =   model.ground_support_velocity +
+    // ## ground support
+    update.ground_support_velocity =   model.ground_support_velocity +
                                         (   
                                             ground_support_contact_forces 
-                                            + (update.position - model.ground_support_position) * LAMBDA_RECOVERY_1
-                                            + (update.velocity - model.ground_support_velocity) * LAMBDA_RECOVERY_2
-                                            - model.ground_support_velocity * LAMBDA_RECOVERY_3
+                                            + ( e_gs_ub * 1 - model.ground_support_velocity) * LAMBDA_RECOVERY_2
                                         )* dT;
-        update.ground_support_position = model.ground_support_position + update.ground_support_velocity * dT;
-    }
+    update.ground_support_position = model.ground_support_position + update.ground_support_velocity * dT;
+
+
 
 
     // printf(
@@ -355,10 +326,12 @@ Point SocialForceModelIPP::ContactForceBetweenPoints(
     const Point n_ij = (pt1 - pt2).Normalized();
     const Point tangent = n_ij.Rotate90Deg();
     if(dist < radiuses_sum) {
-        pushing_force_norm += 10000 * std::pow(1 - (dist / radiuses_sum), 1.5);
+        pushing_force_norm = 4 * 0.5 * exp((radiuses_sum - dist)/0.5);
+        // pushing_force_norm += 10000 * std::pow(1 - (dist / radiuses_sum), 1.5);
         // original SFM: this->bodyForce * (radiuses_sum - dist); //
-        friction_force_norm =
-            this->friction * (radiuses_sum - dist) * (velocity.ScalarProduct(tangent));
+        /// ### No frictional force in the simple model
+        // friction_force_norm =
+        //     this->friction * (radiuses_sum - dist) * (velocity.ScalarProduct(tangent));
     }
     return n_ij * pushing_force_norm + tangent * friction_force_norm;
 }
