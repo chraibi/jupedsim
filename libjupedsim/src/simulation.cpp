@@ -389,12 +389,15 @@ JPS_AgentId JPS_Simulation_AddSocialForceModelIPPAgent(
                 intoPoint(parameters.ground_support_position),
                 intoPoint(parameters.ground_support_velocity),
                 parameters.height,
-                parameters.mass,
                 parameters.desiredSpeed,
                 parameters.reactionTime,
+                parameters.lambdaU,
+                parameters.lambdaB,
+                parameters.balanceSpeed,
+                parameters.damping,
                 parameters.agentScale,
-                parameters.obstacleScale,
                 parameters.forceDistance,
+                parameters.legForceDistance,
                 parameters.radius}};
         result = simulation->AddAgent(std::move(agent));
     } catch(const std::exception& ex) {

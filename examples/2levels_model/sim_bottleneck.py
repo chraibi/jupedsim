@@ -34,10 +34,7 @@ writer = jps.SqliteIPPTrajectoryWriter(
     output_file=pathlib.Path(trajectory_file)
 )
 simulation = jps.Simulation(
-    model=jps.SocialForceModelIPP(
-        body_force=120000,  # k [kg s^-2] contact push strength
-        friction=240000,    # kappa [kg m^-1 s^-1] contact friction
-    ),
+    model=jps.SocialForceModelIPP(),
     geometry=area,
     trajectory_writer=writer,
 )
@@ -47,7 +44,6 @@ journey = jps.JourneyDescription([exit_id])
 journey_id = simulation.add_journey(journey)
 
 ## Spawn agents
-# v_distribution = normal(1.34, 0.5, num_agents)
 v_distribution = normal(1.5, 0.2, num_agents)
 
 for pos, v0 in zip(pos_in_spawning_area, v_distribution):
@@ -61,13 +57,16 @@ for pos, v0 in zip(pos_in_spawning_area, v_distribution):
             ground_support_position=pos,
             ground_support_velocity=(0.0, 0.0),
             height=1.75,            # agent height [m]
-            mass=80.0,              # agent mass [kg]
             desired_speed=v0,       # v0 [m/s]
             reaction_time=0.5,      # tau [s]
-            agent_scale=2000.0,     # A [N] social force vs agents
-            obstacle_scale=2000.0,  # A [N] social force vs obstacles
-            force_distance=0.08,    # B [m] social force range
-            radius=0.3,            # upper body radius [m]
+            lambda_u=0.5,           # unbalancing rate [1/s]
+            lambda_b=1.0,           # balancing rate [1/s]
+            balance_speed=1.0,      # coupling speed v_s [m/s]
+            damping=1.0,            # velocity dissipation [1/s]
+            agent_scale=5.0,        # A repulsion amplitude [N]
+            force_distance=0.5,     # B upper body range [m]
+            leg_force_distance=0.3, # B_leg leg range [m]
+            radius=0.15,            # upper body radius [m]
         )
     )
 
@@ -82,10 +81,3 @@ while (
         print("Simulation stopped after " + str(max_iteration) + " iterations.")
 
 writer.close()
-
-
-## Import Sqlite with PedPy
-# from sqlite_loader_moded_pepy_fun import *
-
-# TrajectoryData = load_trajectory_from_jupedsim_sqlite(pathlib.Path(trajectory_file))
-# traj = TrajectoryData.data

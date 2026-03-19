@@ -23,12 +23,15 @@ void init_social_force_model_IPP(py::module_& m)
                         std::tuple<double, double> ground_support_position,
                         std::tuple<double, double> ground_support_velocity,
                         double height,
-                        double mass,
                         double desiredSpeed,
                         double reactionTime,
+                        double lambdaU,
+                        double lambdaB,
+                        double balanceSpeed,
+                        double damping,
                         double agentScale,
-                        double obstacleScale,
                         double forceDistance,
+                        double legForceDistance,
                         double radius) {
                 return JPS_SocialForceModelIPPAgentParameters{
                     intoJPS_Point(position),
@@ -39,12 +42,15 @@ void init_social_force_model_IPP(py::module_& m)
                     intoJPS_Point(ground_support_position),
                     intoJPS_Point(ground_support_velocity),
                     height,
-                    mass,
                     desiredSpeed,
                     reactionTime,
+                    lambdaU,
+                    lambdaB,
+                    balanceSpeed,
+                    damping,
                     agentScale,
-                    obstacleScale,
                     forceDistance,
+                    legForceDistance,
                     radius};
             }),
             py::kw_only(),
@@ -56,19 +62,23 @@ void init_social_force_model_IPP(py::module_& m)
             py::arg("ground_support_position"),
             py::arg("ground_support_velocity"),
             py::arg("height"),
-            py::arg("mass"),
             py::arg("desired_speed"),
             py::arg("reaction_time"),
+            py::arg("lambda_u"),
+            py::arg("lambda_b"),
+            py::arg("balance_speed"),
+            py::arg("damping"),
             py::arg("agent_scale"),
-            py::arg("obstacle_scale"),
             py::arg("force_distance"),
+            py::arg("leg_force_distance"),
             py::arg("radius"))
         .def("__repr__", [](const JPS_SocialForceModelIPPAgentParameters& p) {
             return fmt::format(
-                "position: {}, orientation: {}, journey_id: {}, stage_id: {},"
-                "velocity: {}, ground_support_position: {}, ground_support_velocity: {}, height: {}, mass: {}, desiredSpeed: {},"
-                "reactionTime: {}, agentScale: {}, obstacleScale: {}, forceDistance: {}, radius: "
-                "{}",
+                "position: {}, orientation: {}, journey_id: {}, stage_id: {}, "
+                "velocity: {}, ground_support_position: {}, ground_support_velocity: {}, "
+                "height: {}, desiredSpeed: {}, reactionTime: {}, "
+                "lambdaU: {}, lambdaB: {}, balanceSpeed: {}, damping: {}, "
+                "agentScale: {}, forceDistance: {}, legForceDistance: {}, radius: {}",
                 intoTuple(p.position),
                 intoTuple(p.orientation),
                 p.journeyId,
@@ -77,23 +87,23 @@ void init_social_force_model_IPP(py::module_& m)
                 intoTuple(p.ground_support_position),
                 intoTuple(p.ground_support_velocity),
                 p.height,
-                p.mass,
                 p.desiredSpeed,
                 p.reactionTime,
+                p.lambdaU,
+                p.lambdaB,
+                p.balanceSpeed,
+                p.damping,
                 p.agentScale,
-                p.obstacleScale,
                 p.forceDistance,
+                p.legForceDistance,
                 p.radius);
         });
     py::class_<JPS_SocialForceModelIPPBuilder_Wrapper>(m, "SocialForceModelIPPBuilder")
         .def(
-            py::init([](double bodyForce, double friction) {
+            py::init([]() {
                 return std::make_unique<JPS_SocialForceModelIPPBuilder_Wrapper>(
-                    JPS_SocialForceModelIPPBuilder_Create(bodyForce, friction));
-            }),
-            py::kw_only(),
-            py::arg("body_force"),
-            py::arg("friction"))
+                    JPS_SocialForceModelIPPBuilder_Create());
+            }))
         .def("build", [](JPS_SocialForceModelIPPBuilder_Wrapper& w) {
             JPS_ErrorMessage errorMsg{};
             auto result = JPS_SocialForceModelIPPBuilder_Build(w.handle, &errorMsg);
@@ -140,14 +150,6 @@ void init_social_force_model_IPP(py::module_& m)
                 JPS_SocialForceModelIPPState_SetHeight(w.handle, height);
             })
         .def_property(
-            "mass",
-            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
-                return JPS_SocialForceModelIPPState_GetMass(w.handle);
-            },
-            [](JPS_SocialForceModelIPPState_Wrapper& w, double mass) {
-                JPS_SocialForceModelIPPState_SetMass(w.handle, mass);
-            })
-        .def_property(
             "desired_speed",
             [](const JPS_SocialForceModelIPPState_Wrapper& w) {
                 return JPS_SocialForceModelIPPState_GetDesiredSpeed(w.handle);
@@ -164,6 +166,38 @@ void init_social_force_model_IPP(py::module_& m)
                 JPS_SocialForceModelIPPState_SetReactionTime(w.handle, reactionTime);
             })
         .def_property(
+            "lambda_u",
+            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
+                return JPS_SocialForceModelIPPState_GetLambdaU(w.handle);
+            },
+            [](JPS_SocialForceModelIPPState_Wrapper& w, double lambdaU) {
+                JPS_SocialForceModelIPPState_SetLambdaU(w.handle, lambdaU);
+            })
+        .def_property(
+            "lambda_b",
+            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
+                return JPS_SocialForceModelIPPState_GetLambdaB(w.handle);
+            },
+            [](JPS_SocialForceModelIPPState_Wrapper& w, double lambdaB) {
+                JPS_SocialForceModelIPPState_SetLambdaB(w.handle, lambdaB);
+            })
+        .def_property(
+            "balance_speed",
+            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
+                return JPS_SocialForceModelIPPState_GetBalanceSpeed(w.handle);
+            },
+            [](JPS_SocialForceModelIPPState_Wrapper& w, double balanceSpeed) {
+                JPS_SocialForceModelIPPState_SetBalanceSpeed(w.handle, balanceSpeed);
+            })
+        .def_property(
+            "damping",
+            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
+                return JPS_SocialForceModelIPPState_GetDamping(w.handle);
+            },
+            [](JPS_SocialForceModelIPPState_Wrapper& w, double damping) {
+                JPS_SocialForceModelIPPState_SetDamping(w.handle, damping);
+            })
+        .def_property(
             "agent_scale",
             [](const JPS_SocialForceModelIPPState_Wrapper& w) {
                 return JPS_SocialForceModelIPPState_GetAgentScale(w.handle);
@@ -172,20 +206,20 @@ void init_social_force_model_IPP(py::module_& m)
                 JPS_SocialForceModelIPPState_SetAgentScale(w.handle, agentScale);
             })
         .def_property(
-            "obstacle_scale",
-            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
-                return JPS_SocialForceModelIPPState_GetObstacleScale(w.handle);
-            },
-            [](JPS_SocialForceModelIPPState_Wrapper& w, double obstacleScale) {
-                JPS_SocialForceModelIPPState_SetObstacleScale(w.handle, obstacleScale);
-            })
-        .def_property(
             "force_distance",
             [](const JPS_SocialForceModelIPPState_Wrapper& w) {
                 return JPS_SocialForceModelIPPState_GetForceDistance(w.handle);
             },
             [](JPS_SocialForceModelIPPState_Wrapper& w, double forceDistance) {
                 JPS_SocialForceModelIPPState_SetForceDistance(w.handle, forceDistance);
+            })
+        .def_property(
+            "leg_force_distance",
+            [](const JPS_SocialForceModelIPPState_Wrapper& w) {
+                return JPS_SocialForceModelIPPState_GetLegForceDistance(w.handle);
+            },
+            [](JPS_SocialForceModelIPPState_Wrapper& w, double legForceDistance) {
+                JPS_SocialForceModelIPPState_SetLegForceDistance(w.handle, legForceDistance);
             })
         .def_property(
             "radius",

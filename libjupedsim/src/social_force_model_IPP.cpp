@@ -17,10 +17,10 @@ using jupedsim::detail::intoTuple;
 /// SocialForceModelIPP Model Builder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 JUPEDSIM_API JPS_SocialForceModelIPPBuilder
-JPS_SocialForceModelIPPBuilder_Create(double bodyForce, double friction)
+JPS_SocialForceModelIPPBuilder_Create()
 {
     return reinterpret_cast<JPS_SocialForceModelIPPBuilder>(
-        new SocialForceModelIPPBuilder(bodyForce, friction));
+        new SocialForceModelIPPBuilder());
 }
 
 JUPEDSIM_API JPS_OperationalModel JPS_SocialForceModelIPPBuilder_Build(
@@ -80,9 +80,8 @@ JPS_SocialForceModelIPPState_SetGroundSupportPosition(JPS_SocialForceModelIPPSta
 {
     assert(handle);
     const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
-    state->ground_support_position = intoPoint(ground_support_position);;
+    state->ground_support_position = intoPoint(ground_support_position);
 }
-
 
 JUPEDSIM_API JPS_Point JPS_SocialForceModelIPPState_GetGroundSupportVelocity(JPS_SocialForceModelIPPState handle)
 {
@@ -96,7 +95,7 @@ JPS_SocialForceModelIPPState_SetGroundSupportVelocity(JPS_SocialForceModelIPPSta
 {
     assert(handle);
     const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
-    state->ground_support_velocity = intoPoint(ground_support_velocity);;
+    state->ground_support_velocity = intoPoint(ground_support_velocity);
 }
 
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetHeight(JPS_SocialForceModelIPPState handle)
@@ -111,20 +110,6 @@ JUPEDSIM_API void JPS_SocialForceModelIPPState_SetHeight(JPS_SocialForceModelIPP
     assert(handle);
     const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
     state->height = height;
-}
-
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetMass(JPS_SocialForceModelIPPState handle)
-{
-    assert(handle);
-    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
-    return state->mass;
-}
-
-JUPEDSIM_API void JPS_SocialForceModelIPPState_SetMass(JPS_SocialForceModelIPPState handle, double mass)
-{
-    assert(handle);
-    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
-    state->mass = mass;
 }
 
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetDesiredSpeed(JPS_SocialForceModelIPPState handle)
@@ -157,6 +142,66 @@ JPS_SocialForceModelIPPState_SetReactionTime(JPS_SocialForceModelIPPState handle
     state->reactionTime = reactionTime;
 }
 
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLambdaU(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->lambdaU;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLambdaU(JPS_SocialForceModelIPPState handle, double lambdaU)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->lambdaU = lambdaU;
+}
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLambdaB(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->lambdaB;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLambdaB(JPS_SocialForceModelIPPState handle, double lambdaB)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->lambdaB = lambdaB;
+}
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetBalanceSpeed(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->balanceSpeed;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetBalanceSpeed(JPS_SocialForceModelIPPState handle, double balanceSpeed)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->balanceSpeed = balanceSpeed;
+}
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetDamping(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->damping;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetDamping(JPS_SocialForceModelIPPState handle, double damping)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->damping = damping;
+}
+
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetAgentScale(JPS_SocialForceModelIPPState handle)
 {
     assert(handle);
@@ -172,21 +217,6 @@ JPS_SocialForceModelIPPState_SetAgentScale(JPS_SocialForceModelIPPState handle, 
     state->agentScale = agentScale;
 }
 
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleScale(JPS_SocialForceModelIPPState handle)
-{
-    assert(handle);
-    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
-    return state->obstacleScale;
-}
-
-JUPEDSIM_API void
-JPS_SocialForceModelIPPState_SetObstacleScale(JPS_SocialForceModelIPPState handle, double obstacleScale)
-{
-    assert(handle);
-    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
-    state->obstacleScale = obstacleScale;
-}
-
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetForceDistance(JPS_SocialForceModelIPPState handle)
 {
     assert(handle);
@@ -200,6 +230,21 @@ JPS_SocialForceModelIPPState_SetForceDistance(JPS_SocialForceModelIPPState handl
     assert(handle);
     const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
     state->forceDistance = forceDistance;
+}
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLegForceDistance(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->legForceDistance;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLegForceDistance(JPS_SocialForceModelIPPState handle, double legForceDistance)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->legForceDistance = legForceDistance;
 }
 
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetRadius(JPS_SocialForceModelIPPState handle)

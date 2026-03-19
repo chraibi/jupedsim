@@ -7,18 +7,14 @@ import jupedsim.native as py_jps
 
 @dataclass(kw_only=True)
 class SocialForceModelIPP:
-    r"""Parameters for Social Force Model with Inverted Pendulum Paradigm.
+    r"""Two-level pedestrian model (Inverted Pendulum Paradigm).
 
-    Two-level agent representation: upper body (center of mass) and
-    ground support (feet/contact surface).
-
-    Attributes:
-        body_force: contact push strength k [kg s^-2]
-        friction: contact friction strength kappa [kg m^-1 s^-1]
+    Each agent has an upper body and a ground support (legs) coupled
+    via unbalancing/balance-recovery dynamics.  All parameters are
+    per-agent; the model itself has no constructor parameters.
     """
 
-    body_force: float = 120000
-    friction: float = 240000
+    pass
 
 
 @dataclass(kw_only=True)
@@ -30,16 +26,19 @@ class SocialForceModelIPPAgentParameters:
         orientation: Orientation of the agent.
         journey_id: Id of the journey the agent follows.
         stage_id: Id of the stage the agent targets.
-        velocity: Current velocity of the agent.
+        velocity: Current velocity of the upper body.
         ground_support_position: Position of the ground support circle center.
         ground_support_velocity: Velocity of the ground support circle center.
         height: Height of the agent [m].
-        mass: Mass of the agent [kg].
-        desired_speed: Desired speed [m/s].
-        reaction_time: Reaction time [s].
-        agent_scale: Social force strength vs agents [N].
-        obstacle_scale: Social force strength vs obstacles [N].
-        force_distance: Social force range [m].
+        desired_speed: Desired speed v0 [m/s].
+        reaction_time: Driving force relaxation time tau [s].
+        lambda_u: Unbalancing rate [1/s].
+        lambda_b: Balancing rate [1/s].
+        balance_speed: Coupling speed v_s [m/s].
+        damping: Upper body velocity dissipation rate [1/s].
+        agent_scale: Exponential repulsion amplitude A [N].
+        force_distance: Upper body interaction range B [m].
+        leg_force_distance: Leg interaction range B_leg [m].
         radius: Upper body radius [m].
     """
 
@@ -50,14 +49,17 @@ class SocialForceModelIPPAgentParameters:
     velocity: tuple[float, float] = (0.0, 0.0)
     ground_support_position: tuple[float, float] = (0.0, 0.0)
     ground_support_velocity: tuple[float, float] = (0.0, 0.0)
-    height: float = 1.65
-    mass: float = 80.0
-    desired_speed: float = 0.8
+    height: float = 1.75
+    desired_speed: float = 1.34
     reaction_time: float = 0.5
-    agent_scale: float = 2000.0
-    obstacle_scale: float = 2000.0
-    force_distance: float = 0.08
-    radius: float = 0.3
+    lambda_u: float = 0.5
+    lambda_b: float = 1.0
+    balance_speed: float = 1.0
+    damping: float = 1.0
+    agent_scale: float = 5.0
+    force_distance: float = 0.5
+    leg_force_distance: float = 0.3
+    radius: float = 0.15
 
     def as_native(
         self,
@@ -71,12 +73,15 @@ class SocialForceModelIPPAgentParameters:
             ground_support_position=self.ground_support_position,
             ground_support_velocity=self.ground_support_velocity,
             height=self.height,
-            mass=self.mass,
             desired_speed=self.desired_speed,
             reaction_time=self.reaction_time,
+            lambda_u=self.lambda_u,
+            lambda_b=self.lambda_b,
+            balance_speed=self.balance_speed,
+            damping=self.damping,
             agent_scale=self.agent_scale,
-            obstacle_scale=self.obstacle_scale,
             force_distance=self.force_distance,
+            leg_force_distance=self.leg_force_distance,
             radius=self.radius,
         )
 
@@ -122,15 +127,6 @@ class SocialForceModelIPPState:
         self._obj.height = height
 
     @property
-    def mass(self) -> float:
-        """Mass of this agent."""
-        return self._obj.mass
-
-    @mass.setter
-    def mass(self, mass):
-        self._obj.mass = mass
-
-    @property
     def desired_speed(self) -> float:
         """Desired speed of this agent."""
         return self._obj.desired_speed
@@ -149,8 +145,44 @@ class SocialForceModelIPPState:
         self._obj.reaction_time = reaction_time
 
     @property
+    def lambda_u(self) -> float:
+        """Unbalancing rate."""
+        return self._obj.lambda_u
+
+    @lambda_u.setter
+    def lambda_u(self, lambda_u):
+        self._obj.lambda_u = lambda_u
+
+    @property
+    def lambda_b(self) -> float:
+        """Balancing rate."""
+        return self._obj.lambda_b
+
+    @lambda_b.setter
+    def lambda_b(self, lambda_b):
+        self._obj.lambda_b = lambda_b
+
+    @property
+    def balance_speed(self) -> float:
+        """Coupling speed."""
+        return self._obj.balance_speed
+
+    @balance_speed.setter
+    def balance_speed(self, balance_speed):
+        self._obj.balance_speed = balance_speed
+
+    @property
+    def damping(self) -> float:
+        """Velocity dissipation rate."""
+        return self._obj.damping
+
+    @damping.setter
+    def damping(self, damping):
+        self._obj.damping = damping
+
+    @property
     def agent_scale(self) -> float:
-        """Social force strength vs agents."""
+        """Exponential repulsion amplitude."""
         return self._obj.agent_scale
 
     @agent_scale.setter
@@ -158,22 +190,22 @@ class SocialForceModelIPPState:
         self._obj.agent_scale = agent_scale
 
     @property
-    def obstacle_scale(self) -> float:
-        """Social force strength vs obstacles."""
-        return self._obj.obstacle_scale
-
-    @obstacle_scale.setter
-    def obstacle_scale(self, obstacle_scale):
-        self._obj.obstacle_scale = obstacle_scale
-
-    @property
     def force_distance(self) -> float:
-        """Social force range."""
+        """Upper body interaction range."""
         return self._obj.force_distance
 
     @force_distance.setter
     def force_distance(self, force_distance):
         self._obj.force_distance = force_distance
+
+    @property
+    def leg_force_distance(self) -> float:
+        """Leg interaction range."""
+        return self._obj.leg_force_distance
+
+    @leg_force_distance.setter
+    def leg_force_distance(self, leg_force_distance):
+        self._obj.leg_force_distance = leg_force_distance
 
     @property
     def radius(self) -> float:

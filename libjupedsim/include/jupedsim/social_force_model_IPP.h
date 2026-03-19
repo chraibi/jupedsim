@@ -17,13 +17,10 @@ typedef struct JPS_SocialForceModelIPPBuilder_t* JPS_SocialForceModelIPPBuilder;
 
 /**
  * Creates a SocialForceModelIPP builder.
- * @param bodyForce describes the strength with which an agent is influenced
- * by pushing forces from obstacles and neighbors in its direct proximity.
- * @param friction describes the strength with which an agent is influenced
- * by frictional forces from obstacles and neighbors in its direct proximity.
- * */
+ * The two-level model has no model-level parameters; all parameters are per-agent.
+ */
 JUPEDSIM_API JPS_SocialForceModelIPPBuilder
-JPS_SocialForceModelIPPBuilder_Create(double bodyForce, double friction);
+JPS_SocialForceModelIPPBuilder_Create();
 
 /**
  * Creates a JPS_OperationalModel of type SocialForceModelIPP Model from the
@@ -43,172 +40,62 @@ JUPEDSIM_API JPS_OperationalModel JPS_SocialForceModelIPPBuilder_Build(
 JUPEDSIM_API void JPS_SocialForceModelIPPBuilder_Free(JPS_SocialForceModelIPPBuilder handle);
 
 /**
- * Opaque type of Social Force model state
+ * Opaque type of Social Force Model IPP state
  */
 typedef struct JPS_SocialForceModelIPPState_t* JPS_SocialForceModelIPPState;
 
-/**
- * Read Velocity of this agent.
- * @param handle of the Agent to access.
- * @return Velocity of this agent.
- */
 JUPEDSIM_API JPS_Point JPS_SocialForceModelIPPState_GetVelocity(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write Velocity of this agent.
- * @param handle of the Agent to access.
- * @param velocity Velocity of this agent.
- */
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetVelocity(JPS_SocialForceModelIPPState handle, JPS_Point velocity);
 
-/**
- * Read ground support position of this agent.
- * @param handle of the Agent to access.
- * @return Ground support position of this agent.
- */
 JUPEDSIM_API JPS_Point JPS_SocialForceModelIPPState_GetGroundSupportPosition(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write Ground support position of this agent.
- * @param handle of the Agent to access.
- * @param Ground support position of this agent.
- */
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetGroundSupportPosition(JPS_SocialForceModelIPPState handle, JPS_Point ground_support_position);
 
-
-/**
- * Read ground support position of this agent.
- * @param handle of the Agent to access.
- * @return Ground support position of this agent.
- */
 JUPEDSIM_API JPS_Point JPS_SocialForceModelIPPState_GetGroundSupportVelocity(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write Ground support position of this agent.
- * @param handle of the Agent to access.
- * @param Ground support position of this agent.
- */
 JUPEDSIM_API void
-JPS_SocialForceModelIPPState_SetGroundSupportVelocity(JPS_SocialForceModelIPPState handle, JPS_Point ground_support_position);
+JPS_SocialForceModelIPPState_SetGroundSupportVelocity(JPS_SocialForceModelIPPState handle, JPS_Point ground_support_velocity);
 
-/**
- * Read height of this agent.
- * @param handle of the Agent to access.
- * @return height in kg of this agent
- */
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetHeight(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write height of this agent.
- * @param handle of the Agent to access.
- * @param height in kg of this agent.
- */
 JUPEDSIM_API void JPS_SocialForceModelIPPState_SetHeight(JPS_SocialForceModelIPPState handle, double height);
 
-
-/**
- * Read mass of this agent.
- * @param handle of the Agent to access.
- * @return mass in kg of this agent
- */
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetMass(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write mass of this agent.
- * @param handle of the Agent to access.
- * @param mass in kg of this agent.
- */
-JUPEDSIM_API void JPS_SocialForceModelIPPState_SetMass(JPS_SocialForceModelIPPState handle, double mass);
-
-/**
- * Read desired Speed of this agent.
- * @param handle of the Agent to access.
- * @return desired Speed in m/s of this agent
- */
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetDesiredSpeed(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write desired Speed of this agent.
- * @param handle of the Agent to access.
- * @param desiredSpeed in m/s of this agent.
- */
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetDesiredSpeed(JPS_SocialForceModelIPPState handle, double desiredSpeed);
 
-/**
- * Read reaction Time of this agent.
- * @param handle of the Agent to access.
- * @return reaction Time in s of this agent
- */
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetReactionTime(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write reaction Time of this agent.
- * @param handle of the Agent to access.
- * @param reactionTime in s of this agent.
- */
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetReactionTime(JPS_SocialForceModelIPPState handle, double reactionTime);
 
-/**
- * Read agent Scale of this agent.
- * @param handle of the Agent to access.
- * @return agent Scale of this agent
- */
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetAgentScale(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLambdaU(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLambdaU(JPS_SocialForceModelIPPState handle, double lambdaU);
 
-/**
- * Write agent Scale of this agent.
- * @param handle of the Agent to access.
- * @param agentScale of this agent.
- */
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLambdaB(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLambdaB(JPS_SocialForceModelIPPState handle, double lambdaB);
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetBalanceSpeed(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetBalanceSpeed(JPS_SocialForceModelIPPState handle, double balanceSpeed);
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetDamping(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetDamping(JPS_SocialForceModelIPPState handle, double damping);
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetAgentScale(JPS_SocialForceModelIPPState handle);
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetAgentScale(JPS_SocialForceModelIPPState handle, double agentScale);
 
-/**
- * Read obstacle Scale of this agent.
- * @param handle of the Agent to access.
- * @return obstacle Scale of this agent
- */
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleScale(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write obstacle Scale of this agent.
- * @param handle of the Agent to access.
- * @param obstacleScale of this agent.
- */
-JUPEDSIM_API void
-JPS_SocialForceModelIPPState_SetObstacleScale(JPS_SocialForceModelIPPState handle, double obstacleScale);
-
-/**
- * Read force Distance of this agent.
- * @param handle of the Agent to access.
- * @return force Distance of this agent
- */
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetForceDistance(JPS_SocialForceModelIPPState handle);
-
-/**
- * Write force Distance of this agent.
- * @param handle of the Agent to access.
- * @param forceDistance of this agent.
- */
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetForceDistance(JPS_SocialForceModelIPPState handle, double forceDistance);
 
-/**
- * Read radius of this agent.
- * @param handle of the Agent to access.
- * @return radius in m of this agent
- */
-JUPEDSIM_API double JPS_SocialForceModelIPPState_GetRadius(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLegForceDistance(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetLegForceDistance(JPS_SocialForceModelIPPState handle, double legForceDistance);
 
-/**
- * Write radius of this agent.
- * @param handle of the Agent to access.
- * @param radius in m of this agent.
- */
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetRadius(JPS_SocialForceModelIPPState handle);
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetRadius(JPS_SocialForceModelIPPState handle, double radius);
 
@@ -216,68 +103,24 @@ JPS_SocialForceModelIPPState_SetRadius(JPS_SocialForceModelIPPState handle, doub
  * Describes parameters of an Agent in SocialForceModelIPP
  */
 typedef struct JPS_SocialForceModelIPPAgentParameters {
-    /**
-     * Position of the agent.
-     * The position needs to inside the accessible area.
-     */
     JPS_Point position{0, 0};
-    /*
-     * Orientation vector of the agent.
-     * The orientation vector will internally be normalized.
-     */
     JPS_Point orientation{0, 0};
-    /**
-     * Defines the journey this agent will take use
-     */
     JPS_JourneyId journeyId = 0;
-    /**
-     * Defines the current stage of its journey
-     */
     JPS_StageId stageId = 0;
-    /**
-     * Initial velocity of the Agent
-     */
     JPS_Point velocity = {0, 0};
-    /**
-     * Initial Ground support position of the Agent
-     */
     JPS_Point ground_support_position = {0, 0};
-    /**
-     * Initial Ground support velocity of the Agent
-     */
     JPS_Point ground_support_velocity = {0, 0};
-    /**
-     * Height of the agent
-     */
-    double height = 1.65;
-    /**
-     * Mass of the agent
-     */
-    double mass = 80;
-    /**
-     * desired Speed of the agent
-     */
-    double desiredSpeed = 0.8;
-    /**
-     * reaction Time of the agent
-     */
+    double height = 1.75;
+    double desiredSpeed = 1.34;
     double reactionTime = 0.5;
-    /**
-     * agent Scale of the agent
-     */
-    double agentScale = 2000;
-    /**
-     * obstacle Scale of the agent
-     */
-    double obstacleScale = 2000;
-    /**
-     * force Distance of the agent
-     */
-    double forceDistance = 0.08;
-    /**
-     * radius of the agent
-     */
-    double radius = 0.3;
+    double lambdaU = 0.5;
+    double lambdaB = 1.0;
+    double balanceSpeed = 1.0;
+    double damping = 1.0;
+    double agentScale = 5.0;
+    double forceDistance = 0.5;
+    double legForceDistance = 0.3;
+    double radius = 0.15;
 
 } JPS_SocialForceModelIPPAgentParameters;
 

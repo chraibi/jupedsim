@@ -16,30 +16,14 @@ public:
 
 private:
     double _cutOffRadius{2.5};
-    double bodyForce;
-    double friction;
 
 public:
-    // Locomotion phase coupling constants
-    static constexpr double LAMBDA_LOCOMOTION_2 = 0.5; // velocity coupling to ground support direction
-    static constexpr double LAMBDA_LOCOMOTION_3 = 1.0; // velocity dissipation
-
-    // Recovery phase coupling constants
-    static constexpr double LAMBDA_RECOVERY_2 = 1.0; // ground support velocity coupling to upper body direction
-
-    // Anthropometric scaling factors (multiplied by height [m])
+    // Anthropometric scaling factor for ground support radius
+    // foot length / (diameter * reference height)
     static constexpr double GS_SCALING_FACTOR =
-        0.26 / (2 * 0.3 * 1.65); // foot length / (diameter * height)
-    static constexpr double LEG_SCALING_FACTOR =
-        0.5242; // shank(0.2522) + thigh(0.2269) + ankle(0.0451)
+        0.26 / (2 * 0.3 * 1.65);
 
-    static constexpr double g = 9.80665; // standard gravity [m/s^2]
-
-    // Contact force default parameters
-    static constexpr double DEFAULT_BODY_FORCE = 120000.0;  // k [kg s^-2]
-    static constexpr double DEFAULT_FRICTION = 240000.0;     // kappa [kg m^-1 s^-1]
-
-    SocialForceModelIPP(double bodyForce_, double friction_);
+    SocialForceModelIPP();
     ~SocialForceModelIPP() override = default;
     OperationalModelType Type() const override;
     OperationalModelUpdate ComputeNewPosition(
@@ -56,94 +40,20 @@ public:
 
 private:
     /**
-     * Driving force acting on pedestrian <agent>
-     * @param agent reference to Pedestrian
-     *
-     * @return vector with driving force of pedestrian
+     * Driving force: (v0 * e0 - v) / tau
      */
     static Point DrivingForce(const GenericAgent& agent);
-    /**
-     *  Repulsive social force acting on pedestrian <ped1> from pedestrian <ped2>
-     * @param ped1 reference to Pedestrian 1 on whom the force acts on
-     * @param ped2 reference to Pedestrian 2, from whom the force originates
-     * @return vector with the repulsive force
-     */
-    Point AgentSocialForce(const GenericAgent& ped1, const GenericAgent& ped2) const;
-    /**
-     *  Repulsive social force acting on pedestrian <agent> from line segment <segment>
-     * @param agent reference to the Pedestrian on whom the force acts on
-     * @param segment reference to line segment, from which the force originates
-     * @return vector with the repulsive force
-     */
-    Point ObstacleSocialForce(const GenericAgent& agent, const LineSegment& segment) const;
 
     /**
-     *  Repulsive contact acting on pedestrian <ped1> from pedestrian <ped2> at the upper body level
-     * @param ped1 reference to Pedestrian 1 on whom the force acts on
-     * @param ped2 reference to Pedestrian 2, from whom the force originates
-     * @return vector with the repulsive force
+     * Exponential repulsion between two points: A * exp(-|x1-x2| / B) * n_hat
+     * @param pt1 Point on which the force acts
+     * @param pt2 Point from which the force originates
+     * @param A repulsion amplitude
+     * @param B interaction range (decay length)
      */
-    Point AgentUpperBodyContactForce(const GenericAgent& ped1, const GenericAgent& ped2) const;
-
-    /**
-     *  Repulsive contact acting on pedestrian <ped1> from pedestrian <ped2> at the ground level bettwen support surfaces
-     * @param ped1 reference to Pedestrian 1 on whom the force acts on
-     * @param ped2 reference to Pedestrian 2, from whom the force originates
-     * @return vector with the repulsive force
-     */
-    Point AgentGroundSupportContactForce(const GenericAgent& ped1, const GenericAgent& ped2) const;
-
-    /**
-     *  Repulsive contact force acting on pedestrian <agent> from line segment <segment> at the upper body level
-     * @param agent reference to the Pedestrian on whom the force acts on
-     * @param segment reference to line segment, from which the force originates
-     * @return vector with the repulsive force
-     */
-    Point ObstacleUpperBodyContactForce(const GenericAgent& agent, const LineSegment& segment) const;
-
-    /**
-     *  Repulsive contact force acting on pedestrian <agent> from line segment <segment> at the ground level bettwen support surfaces
-     * @param agent reference to the Pedestrian on whom the force acts on
-     * @param segment reference to line segment, from which the force originates
-     * @return vector with the repulsive force
-     */
-    Point ObstacleGroundSupportContactForce(const GenericAgent& agent, const LineSegment& segment) const;
-
-    /**
-     * calculates the social forces acting between <pt1> and <pt2>
-     * @param pt1 Point on which the forces act
-     * @param pt2 Point from which the forces originate
-     * @param A Agent scale
-     * @param B force distance
-     * @param r radius
-     * @param velocity velocity difference
-     */
-    Point SocialForceBetweenPoints(
+    static Point ExponentialRepulsion(
         const Point pt1,
         const Point pt2,
-        const double A,
-        const double B,
-        const double radius) const;
-
-
-    /* calculates the contacts, normal repultions and friction forces acting between <pt1> and <pt2>
-     * @param pt1 Point on which the forces act
-     * @param pt2 Point from which the forces originate
-     * @param r radius
-     * @param velocity velocity difference
-     */
-    Point ContactForceBetweenPoints(
-        const Point pt1,
-        const Point pt2,
-        const double radius,
-        const Point velocity) const;
-    /**
-     *  exponential function that specifies the length of the pushing force between two points
-     * @param A Agent scale
-     * @param B force distance
-     * @param r radius
-     * @param distance distance between the two points
-     * @return length of pushing force between the two points
-     */
-    static double PushingForceLength(double A, double B, double r, double distance);
+        double A,
+        double B);
 };
