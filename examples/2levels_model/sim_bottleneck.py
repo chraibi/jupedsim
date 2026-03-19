@@ -2,7 +2,6 @@
 import pathlib
 import jupedsim as jps
 import pedpy
-import numpy as np
 from numpy.random import normal  # normal distribution of free movement speed
 from shapely import Polygon, GeometryCollection
 
@@ -64,9 +63,9 @@ for pos, v0 in zip(pos_in_spawning_area, v_distribution):
             balance_speed=1.0,  # coupling speed v_s [m/s]
             damping=1.0,  # velocity dissipation [1/s]
             agent_scale=5.0,  # A repulsion vs agents [N]
-            obstacle_scale=10.0,  # A_w repulsion vs walls [N]
             force_distance=0.5,  # B upper body range [m]
-            obstacle_force_distance=0.2,  # B_w wall range [m]
+            obstacle_scale=100.5,  # A_w repulsion vs walls [N]
+            obstacle_force_distance=0.05,  # B_w wall range [m]
             leg_force_distance=0.3,  # B_leg leg range [m]
             radius=0.15,  # upper body radius [m]
         )
