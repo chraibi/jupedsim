@@ -87,9 +87,17 @@ JUPEDSIM_API double JPS_SocialForceModelIPPState_GetAgentScale(JPS_SocialForceMo
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetAgentScale(JPS_SocialForceModelIPPState handle, double agentScale);
 
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleScale(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetObstacleScale(JPS_SocialForceModelIPPState handle, double obstacleScale);
+
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetForceDistance(JPS_SocialForceModelIPPState handle);
 JUPEDSIM_API void
 JPS_SocialForceModelIPPState_SetForceDistance(JPS_SocialForceModelIPPState handle, double forceDistance);
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleForceDistance(JPS_SocialForceModelIPPState handle);
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetObstacleForceDistance(JPS_SocialForceModelIPPState handle, double obstacleForceDistance);
 
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLegForceDistance(JPS_SocialForceModelIPPState handle);
 JUPEDSIM_API void
@@ -118,7 +126,9 @@ typedef struct JPS_SocialForceModelIPPAgentParameters {
     double balanceSpeed = 1.0;
     double damping = 1.0;
     double agentScale = 5.0;
+    double obstacleScale = 5.0;
     double forceDistance = 0.5;
+    double obstacleForceDistance = 0.2;
     double legForceDistance = 0.3;
     double radius = 0.15;
 

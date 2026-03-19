@@ -217,6 +217,21 @@ JPS_SocialForceModelIPPState_SetAgentScale(JPS_SocialForceModelIPPState handle, 
     state->agentScale = agentScale;
 }
 
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleScale(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->obstacleScale;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetObstacleScale(JPS_SocialForceModelIPPState handle, double obstacleScale)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->obstacleScale = obstacleScale;
+}
+
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetForceDistance(JPS_SocialForceModelIPPState handle)
 {
     assert(handle);
@@ -230,6 +245,21 @@ JPS_SocialForceModelIPPState_SetForceDistance(JPS_SocialForceModelIPPState handl
     assert(handle);
     const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
     state->forceDistance = forceDistance;
+}
+
+JUPEDSIM_API double JPS_SocialForceModelIPPState_GetObstacleForceDistance(JPS_SocialForceModelIPPState handle)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<const SocialForceModelIPPData*>(handle);
+    return state->obstacleForceDistance;
+}
+
+JUPEDSIM_API void
+JPS_SocialForceModelIPPState_SetObstacleForceDistance(JPS_SocialForceModelIPPState handle, double obstacleForceDistance)
+{
+    assert(handle);
+    const auto state = reinterpret_cast<SocialForceModelIPPData*>(handle);
+    state->obstacleForceDistance = obstacleForceDistance;
 }
 
 JUPEDSIM_API double JPS_SocialForceModelIPPState_GetLegForceDistance(JPS_SocialForceModelIPPState handle)

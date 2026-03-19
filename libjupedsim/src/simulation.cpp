@@ -396,7 +396,9 @@ JPS_AgentId JPS_Simulation_AddSocialForceModelIPPAgent(
                 parameters.balanceSpeed,
                 parameters.damping,
                 parameters.agentScale,
+                parameters.obstacleScale,
                 parameters.forceDistance,
+                parameters.obstacleForceDistance,
                 parameters.legForceDistance,
                 parameters.radius}};
         result = simulation->AddAgent(std::move(agent));
