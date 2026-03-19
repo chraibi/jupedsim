@@ -271,9 +271,13 @@ Point SocialForceModelIPP::ContactForceBetweenPoints(
 {
     const double dist = (pt1 - pt2).Norm();
     double pushing_force_norm = 0;
+    double friction_force_norm = 0;
     const Point n_ij = (pt1 - pt2).Normalized();
+    const Point tangent = n_ij.Rotate90Deg();
     if(dist < radiuses_sum) {
-        pushing_force_norm = CONTACT_SCALE * exp((radiuses_sum - dist) / CONTACT_RANGE);
+        pushing_force_norm = this->bodyForce * (radiuses_sum - dist);
+        friction_force_norm =
+            this->friction * (radiuses_sum - dist) * (velocity.ScalarProduct(tangent));
     }
-    return n_ij * pushing_force_norm;
+    return n_ij * pushing_force_norm + tangent * friction_force_norm;
 }

@@ -35,9 +35,9 @@ public:
 
     static constexpr double g = 9.80665; // standard gravity [m/s^2]
 
-    // Contact force parameters
-    static constexpr double CONTACT_SCALE = 2.0;  // contact force amplitude
-    static constexpr double CONTACT_RANGE = 0.5;  // contact force decay length [m]
+    // Contact force default parameters
+    static constexpr double DEFAULT_BODY_FORCE = 120000.0;  // k [kg s^-2]
+    static constexpr double DEFAULT_FRICTION = 240000.0;     // kappa [kg m^-1 s^-1]
 
     SocialForceModelIPP(double bodyForce_, double friction_);
     ~SocialForceModelIPP() override = default;

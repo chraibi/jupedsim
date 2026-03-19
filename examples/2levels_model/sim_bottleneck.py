@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
 import pathlib
 import jupedsim as jps
 import pedpy
@@ -29,12 +30,16 @@ exit_area = Polygon([(27, -2), (28, -2), (28, 2), (27, 2)])
 
 ## Setup Simulation
 trajectory_file = "bottleneck_SocialForceModelIPP.sqlite"  # output file
+writer = jps.SqliteIPPTrajectoryWriter(
+    output_file=pathlib.Path(trajectory_file)
+)
 simulation = jps.Simulation(
-    model=jps.SocialForceModelIPP(),
-    geometry=area,
-    trajectory_writer=jps.SqliteIPPTrajectoryWriter(
-        output_file=pathlib.Path(trajectory_file)
+    model=jps.SocialForceModelIPP(
+        body_force=120000,  # k [kg s^-2] contact push strength
+        friction=240000,    # kappa [kg m^-1 s^-1] contact friction
     ),
+    geometry=area,
+    trajectory_writer=writer,
 )
 
 exit_id = simulation.add_exit_stage(exit_area.exterior.coords[:-1])
@@ -48,12 +53,21 @@ v_distribution = normal(1.5, 0.2, num_agents)
 for pos, v0 in zip(pos_in_spawning_area, v_distribution):
     agent_id = simulation.add_agent(
         jps.SocialForceModelIPPAgentParameters(
+            position=pos,
+            orientation=(0.0, 0.0),
             journey_id=journey_id,
             stage_id=exit_id,
-            position=pos,
+            velocity=(0.0, 0.0),
             ground_support_position=pos,
-            desired_speed=v0,
-            height=1.75,
+            ground_support_velocity=(0.0, 0.0),
+            height=1.75,            # agent height [m]
+            mass=80.0,              # agent mass [kg]
+            desired_speed=v0,       # v0 [m/s]
+            reaction_time=0.5,      # tau [s]
+            agent_scale=2000.0,     # A [N] social force vs agents
+            obstacle_scale=2000.0,  # A [N] social force vs obstacles
+            force_distance=0.08,    # B [m] social force range
+            radius=0.3,            # upper body radius [m]
         )
     )
 
@@ -66,6 +80,8 @@ while (
     simulation.iterate()
     if simulation.iteration_count() == max_iteration:
         print("Simulation stopped after " + str(max_iteration) + " iterations.")
+
+writer.close()
 
 
 ## Import Sqlite with PedPy

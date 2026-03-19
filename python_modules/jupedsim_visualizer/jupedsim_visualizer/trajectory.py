@@ -2,7 +2,7 @@
 from jupedsim.internal.aabb import AABB
 from jupedsim.recording import Recording, RecordingFrame
 from vtkmodules.vtkCommonCore import vtkPoints
-from vtkmodules.vtkCommonDataModel import vtkPolyData
+from vtkmodules.vtkCommonDataModel import vtkCellArray, vtkLine, vtkPolyData
 from vtkmodules.vtkFiltersCore import vtkGlyph2D
 from vtkmodules.vtkFiltersSources import vtkRegularPolygonSource
 from vtkmodules.vtkRenderingCore import vtkActor, vtkPolyDataMapper
@@ -33,9 +33,10 @@ def to_vtk_gs_points(frame: RecordingFrame) -> vtkPoints:
     return points
 
 
-def build_link_polydata(frame: RecordingFrame) -> vtkPolyData:
-    from vtkmodules.vtkCommonDataModel import vtkCellArray, vtkLine
-
+def update_link_polydata(
+    polydata: vtkPolyData, frame: RecordingFrame
+) -> None:
+    """Update link polydata points and lines in-place."""
     points = vtkPoints()
     lines = vtkCellArray()
     for agent in frame.agents:
@@ -52,10 +53,9 @@ def build_link_polydata(frame: RecordingFrame) -> vtkPolyData:
             line.GetPointIds().SetId(0, idx)
             line.GetPointIds().SetId(1, idx2)
             lines.InsertNextCell(line)
-    polydata = vtkPolyData()
     polydata.SetPoints(points)
     polydata.SetLines(lines)
-    return polydata
+    polydata.Modified()
 
 
 def clamp(value: int, min_value: int, max_value: int) -> int:
@@ -100,7 +100,7 @@ class Trajectory:
         self.link_actor = None
         self.gs_glyph2D = None
         self.gs_polydata = None
-        self._link_mapper = None
+        self._link_polydata = None
 
         if self._has_ipp:
             self._init_ipp(first_frame)
@@ -131,9 +131,13 @@ class Trajectory:
         gs_actor.GetProperty().SetColor(Colors.e)
         self.gs_actor = gs_actor
 
-        # Connection lines — mapper swaps polydata each frame
+        # Connection lines — polydata updated in-place each frame
+        link_polydata = vtkPolyData()
+        update_link_polydata(link_polydata, first_frame)
+        self._link_polydata = link_polydata
+
         link_mapper = vtkPolyDataMapper()
-        link_mapper.SetInputData(build_link_polydata(first_frame))
+        link_mapper.SetInputData(link_polydata)
         self._link_mapper = link_mapper
 
         link_actor = vtkActor()
@@ -160,7 +164,7 @@ class Trajectory:
         if self._has_ipp:
             self.gs_polydata.SetPoints(to_vtk_gs_points(frame))
             self.gs_glyph2D.Update()
-            self._link_mapper.SetInputData(build_link_polydata(frame))
+            update_link_polydata(self._link_polydata, frame)
 
     def advance_frame(self, offset: int):
         self.current_index = clamp(
