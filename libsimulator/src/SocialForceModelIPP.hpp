@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 #pragma once
 
-#include "CollisionFreeSpeedModelData.hpp"
+#include "SocialForceModelIPPData.hpp"
 #include "CollisionGeometry.hpp"
 #include "NeighborhoodSearch.hpp"
 #include "OperationalModel.hpp"
@@ -20,21 +20,24 @@ private:
     double friction;
 
 public:
-    // Models parameters and constants;
-    // static constexpr double LAMBDA_LOCOMOTION_1 = 5; // model parameter that ajust the control on position during Locomotion phase
-    static constexpr double LAMBDA_LOCOMOTION_2 = 0.5; // model parameter that ajust the control on velocity during Locomotion phase
-    static constexpr double LAMBDA_LOCOMOTION_3 = 1; // model parameter that ajust the dissipation term during Locomotion phase
+    // Locomotion phase coupling constants
+    static constexpr double LAMBDA_LOCOMOTION_2 = 0.5; // velocity coupling to ground support direction
+    static constexpr double LAMBDA_LOCOMOTION_3 = 1.0; // velocity dissipation
 
-    // static constexpr double LAMBDA_RECOVERY_1 = 5; // model parameter that ajust the control on position during Recovery phase
-    static constexpr double LAMBDA_RECOVERY_2 = 1; // model parameter that ajust the control on velocity during Recovery phase
-    // static constexpr double LAMBDA_RECOVERY_3 = 1; // model parameter that ajust the dissipation term during Recovery phase
+    // Recovery phase coupling constants
+    static constexpr double LAMBDA_RECOVERY_2 = 1.0; // ground support velocity coupling to upper body direction
 
-    // Scalin factors multiplied by the height [m] gives
-    static constexpr double GS_SCALING_FACTOR = 0.26 /(2*0.3*1.65) ; // Ground support circle radius in meters. 
-                                                                    //  Based on average adult foot length (26cm)
-    static constexpr double LEG_SCALING_FACTOR = 0.5242; // Leg length in metters. 0.2522 (shank) + 0.2269 (thigh) + 0.0451 (ankle)
+    // Anthropometric scaling factors (multiplied by height [m])
+    static constexpr double GS_SCALING_FACTOR =
+        0.26 / (2 * 0.3 * 1.65); // foot length / (diameter * height)
+    static constexpr double LEG_SCALING_FACTOR =
+        0.5242; // shank(0.2522) + thigh(0.2269) + ankle(0.0451)
 
-    static constexpr double g = 9.80665; // standard gravity acceleration in m/s^2
+    static constexpr double g = 9.80665; // standard gravity [m/s^2]
+
+    // Contact force parameters
+    static constexpr double CONTACT_SCALE = 2.0;  // contact force amplitude
+    static constexpr double CONTACT_RANGE = 0.5;  // contact force decay length [m]
 
     SocialForceModelIPP(double bodyForce_, double friction_);
     ~SocialForceModelIPP() override = default;

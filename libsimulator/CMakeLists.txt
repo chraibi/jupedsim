@@ -131,6 +131,7 @@ if (BUILD_TESTS)
         test/TestNeighborhoodSearch.cpp
         test/TestPoint.cpp
         test/TestSimulationClock.cpp
+        test/TestSocialForceModelIPP.cpp
         test/TestStage.cpp
         test/TestUniqueID.cpp
     )
