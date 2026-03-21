@@ -24,39 +24,40 @@ from shapely import wkt
 SCRIPT_DIR = Path(__file__).parent
 seed = 123
 MODELS = {
-    "CFSV2": (
-        lambda: jps.CollisionFreeSpeedModelV2(
-            strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
-            range_neighbor_repulsion=0.1,  # exponential decay length [m]
-            strength_geometry_repulsion=5.0,  # wall repulsive force magnitude [N]
-            range_geometry_repulsion=0.02,  # wall exponential decay length [m]
-        ),
-        jps.CollisionFreeSpeedModelV2AgentParameters,
-    ),
-    "AVM": (
-        lambda: jps.AnticipationVelocityModel(
-            strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
-            range_neighbor_repulsion=0.1,  # exponential decay length [m]
-            wall_buffer_distance=0.02,  # min distance to walls [m]
-            anticipation_time=1.0,  # look-ahead for neighbor prediction [s]
-            reaction_time=0.3,  # velocity relaxation time [s]
-        ),
-        jps.AnticipationVelocityModelAgentParameters,
-    ),
-    "SocialForce": (
-        lambda: jps.SocialForceModel(
-            bodyForce=2000,  # contact body force strength [N]
-            friction=0.08,  # sliding friction coefficient
-        ),
-        jps.SocialForceModelAgentParameters,
-    ),
+    # "CFSV2": (
+    #     lambda: jps.CollisionFreeSpeedModelV2(
+    #         strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
+    #         range_neighbor_repulsion=0.1,  # exponential decay length [m]
+    #         strength_geometry_repulsion=5.0,  # wall repulsive force magnitude [N]
+    #         range_geometry_repulsion=0.02,  # wall exponential decay length [m]
+    #     ),
+    #     jps.CollisionFreeSpeedModelV2AgentParameters,
+    # ),
+    # "AVM": (
+    #     lambda: jps.AnticipationVelocityModel(
+    #         strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
+    #         range_neighbor_repulsion=0.1,  # exponential decay length [m]
+    #         wall_buffer_distance=0.02,  # min distance to walls [m]
+    #         anticipation_time=1.0,  # look-ahead for neighbor prediction [s]
+    #         reaction_time=0.3,  # velocity relaxation time [s]
+    #     ),
+    #     jps.AnticipationVelocityModelAgentParameters,
+    # ),
+    # "SocialForce": (
+    #     lambda: jps.SocialForceModel(
+    #         bodyForce=2000,  # contact body force strength [N]
+    #         friction=0.08,  # sliding friction coefficient
+    #     ),
+    #     jps.SocialForceModelAgentParameters,
+    # ),
     "WarpDriver": (
         lambda: jps.WarpDriverModel(
             time_horizon=2.0,  # collision prediction horizon [s]
             step_size=0.5,  # gradient descent step size (avoidance strength)
             sigma=0.3,  # Gaussian spread of intrinsic field
             time_uncertainty=0.5,  # temporal spread of collision field
-            velocity_uncertainty=0.2,  # velocity-dependent spread of collision field
+            velocity_uncertainty_x=0.2,  # longitudinal speed uncertainty
+            velocity_uncertainty_y=0.2,  # lateral speed uncertainty
             num_samples=20,  # trajectory sample points (cost ~ samples x neighbors)
             jam_speed_threshold=0.1,  # speed below which agent is jammed [m/s]
             jam_step_count=10,  # jammed steps before entering chill mode
@@ -215,18 +216,18 @@ def _add_crossing(sim, agent_cls, routes, n=15):
             "west",
             (-1, 0),
         ),
-        "N→S": (
-            shapely.Polygon([(-1.5, 9.5), (1.5, 9.5), (1.5, 7.0), (-1.5, 7.0)]),
-            "south",
-            (0, -1),
-        ),
-        "W→E": (
-            shapely.Polygon(
-                [(-9.5, -1.5), (-8.0, -1.5), (-8.0, 1.5), (-9.5, 1.5)]
-            ),
-            "east",
-            (1, 0),
-        ),
+        # "N→S": (
+        #     shapely.Polygon([(-1.5, 9.5), (1.5, 9.5), (1.5, 7.0), (-1.5, 7.0)]),
+        #     "south",
+        #     (0, -1),
+        # ),
+        # "W→E": (
+        #     shapely.Polygon(
+        #         [(-9.5, -1.5), (-8.0, -1.5), (-8.0, 1.5), (-9.5, 1.5)]
+        #     ),
+        #     "east",
+        #     (1, 0),
+        # ),
     }
     streams = {}
     for stream_name, (spawn_poly, dest, orient) in sources.items():
@@ -485,6 +486,51 @@ def plot_order_parameter(results, axes_row):
         ax.grid(True, linestyle="--", alpha=0.5)
 
 
+def compute_min_distance(sqlite_file):
+    """Compute minimum pairwise agent distance per frame."""
+    traj = pedpy.load_trajectory_from_jupedsim_sqlite(Path(sqlite_file))
+    fps = traj.frame_rate
+    df = traj.data
+
+    frames = sorted(df["frame"].unique())
+    time_s = []
+    min_dists = []
+    for frame in frames:
+        fdf = df[df["frame"] == frame]
+        if len(fdf) < 2:
+            continue
+        xs = fdf["x"].values
+        ys = fdf["y"].values
+        # Pairwise distances via broadcasting
+        dx = xs[:, None] - xs[None, :]
+        dy = ys[:, None] - ys[None, :]
+        dists = np.sqrt(dx * dx + dy * dy)
+        np.fill_diagonal(dists, np.inf)
+        min_dists.append(dists.min())
+        time_s.append(frame / fps)
+
+    return np.array(time_s), np.array(min_dists)
+
+
+def plot_min_distance(results, axes_row):
+    """Plot minimum pairwise distance over time for one scenario."""
+    model_colors = {
+        name: STREAM_COLORS[i % len(STREAM_COLORS)]
+        for i, name in enumerate(MODELS)
+    }
+    for ax, (model_name, r) in zip(axes_row, results.items()):
+        time_s, min_dists = compute_min_distance(r["sqlite"])
+        color = model_colors[model_name]
+        ax.plot(time_s, min_dists, color=color, alpha=0.7, linewidth=0.5)
+        ax.axhline(y=0.3, color="r", linestyle="--", alpha=0.3, label="2r")
+        ax.set_xlabel("Time (s)", fontsize=8)
+        ax.set_ylabel("$d_{min}$ (m)", fontsize=8)
+        ax.set_title(model_name, fontsize=9)
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=7)
+        ax.grid(True, linestyle="--", alpha=0.5)
+
+
 def main():
     all_results = {}
     for scenario_name in SCENARIOS:
@@ -506,31 +552,35 @@ def main():
 
     n_scenarios = len(SCENARIOS)
     n_models = len(MODELS)
-    # 3 rows per scenario: trajectories + fluctuation + order parameter
-    n_rows = n_scenarios * 3
+    # 4 rows per scenario: trajectories + fluctuation + order parameter + min distance
+    n_rows = n_scenarios * 4
     fig, axes = plt.subplots(
         nrows=n_rows,
-        ncols=n_models,
-        figsize=(4 * n_models, 3 * n_rows),
-        gridspec_kw={"height_ratios": [3, 1, 1] * n_scenarios},
+        ncols=max(n_models, 1),
+        figsize=(4 * max(n_models, 1), 3 * n_rows),
+        gridspec_kw={"height_ratios": [3, 1, 1, 1] * n_scenarios},
+        squeeze=False,
     )
 
-    # for i, (scenario_name, results) in enumerate(all_results.items()):
-    #     scen = SCENARIOS[scenario_name]
-    #     traj_row = i * 3
-    #     fluct_row = i * 3 + 1
-    #     order_row = i * 3 + 2
-    #     plot_scenario(results, axes[traj_row])
-    #     axes[traj_row][0].set_ylabel(scen["title"], fontsize=10)
-    #     plot_fluctuation(results, axes[fluct_row])
-    #     axes[fluct_row][0].set_ylabel("$\\phi_v$", fontsize=9)
-    #     plot_order_parameter(results, axes[order_row])
-    #     axes[order_row][0].set_ylabel("$\\phi_d$", fontsize=9)
+    for i, (scenario_name, results) in enumerate(all_results.items()):
+        scen = SCENARIOS[scenario_name]
+        traj_row = i * 4
+        fluct_row = i * 4 + 1
+        order_row = i * 4 + 2
+        mindist_row = i * 4 + 3
+        plot_scenario(results, axes[traj_row])
+        axes[traj_row][0].set_ylabel(scen["title"], fontsize=10)
+        plot_fluctuation(results, axes[fluct_row])
+        axes[fluct_row][0].set_ylabel("$\\phi_v$", fontsize=9)
+        plot_order_parameter(results, axes[order_row])
+        axes[order_row][0].set_ylabel("$\\phi_d$", fontsize=9)
+        plot_min_distance(results, axes[mindist_row])
+        axes[mindist_row][0].set_ylabel("$d_{min}$ (m)", fontsize=9)
 
-    # fig.suptitle("Model Comparison", fontsize=14, y=1.01)
-    # fig.tight_layout()
-    # fig.savefig("benchmark_models.pdf", bbox_inches="tight")
-    # print("\nPlot saved to benchmark_models.pdf")
+    fig.suptitle("Model Comparison", fontsize=14, y=1.01)
+    fig.tight_layout()
+    fig.savefig("benchmark_models.pdf", bbox_inches="tight")
+    print("\nPlot saved to benchmark_models.pdf")
 
 
 if __name__ == "__main__":

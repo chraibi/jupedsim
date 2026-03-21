@@ -8,7 +8,8 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     double stepSize,
     double sigma,
     double timeUncertainty,
-    double velocityUncertainty,
+    double velocityUncertaintyX,
+    double velocityUncertaintyY,
     int numSamples,
     double jamSpeedThreshold,
     int jamStepCount,
@@ -17,7 +18,8 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     , _stepSize(stepSize)
     , _sigma(sigma)
     , _timeUncertainty(timeUncertainty)
-    , _velocityUncertainty(velocityUncertainty)
+    , _velocityUncertaintyX(velocityUncertaintyX)
+    , _velocityUncertaintyY(velocityUncertaintyY)
     , _numSamples(numSamples)
     , _jamSpeedThreshold(jamSpeedThreshold)
     , _jamStepCount(jamStepCount)
@@ -41,10 +43,15 @@ WarpDriverModel WarpDriverModelBuilder::Build()
         throw SimulationError(
             "WarpDriverModelBuilder: timeUncertainty must be >= 0, got {}", _timeUncertainty);
     }
-    if(_velocityUncertainty < 0.0) {
+    if(_velocityUncertaintyX < 0.0) {
         throw SimulationError(
-            "WarpDriverModelBuilder: velocityUncertainty must be >= 0, got {}",
-            _velocityUncertainty);
+            "WarpDriverModelBuilder: velocityUncertaintyX must be >= 0, got {}",
+            _velocityUncertaintyX);
+    }
+    if(_velocityUncertaintyY < 0.0) {
+        throw SimulationError(
+            "WarpDriverModelBuilder: velocityUncertaintyY must be >= 0, got {}",
+            _velocityUncertaintyY);
     }
     if(_numSamples <= 0) {
         throw SimulationError(
@@ -64,7 +71,8 @@ WarpDriverModel WarpDriverModelBuilder::Build()
         _stepSize,
         _sigma,
         _timeUncertainty,
-        _velocityUncertainty,
+        _velocityUncertaintyX,
+        _velocityUncertaintyY,
         _numSamples,
         _jamSpeedThreshold,
         _jamStepCount,

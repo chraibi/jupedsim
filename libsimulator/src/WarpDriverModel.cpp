@@ -1,4 +1,30 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
+//
+// WarpDriver collision-avoidance model.
+// Based on Wolinski, Lin, and Pettré (2016) — PhD thesis Chapter 4, Appendix B.
+//
+// Warp operators implemented (B.1–B.15):
+//   W_ref  — local frame change (W_local: A's frame → B's frame)
+//   W_th   — time horizon normalization (B.1–B.3)
+//   W_tu   — time uncertainty with probability scaling (B.4–B.6)
+//   W_r    — radius normalization via Minkowski sum (B.7–B.9)
+//   W_v    — velocity shear (B.10–B.12)
+//   W_vu   — anisotropic velocity uncertainty with probability scaling (B.13–B.15)
+//
+// Non-thesis safety mechanisms (practical additions):
+//   - Short-range repulsion (3× combined radius) to prevent overlaps
+//   - Boundary wall steering
+//   - Jam detection with "chill mode" recovery
+//   - Lateral perturbation for symmetry breaking
+//
+// TODO: W_ref currently uses simple W_local (straight-line frame change).
+//   The thesis defines graph-based variants (Algorithm 3) that warp space
+//   along navigable paths — W_el (environment layout), W_io (obstacle
+//   interactions), W_ob (observed behaviors). These would enable anticipatory
+//   avoidance around corners and bends. The routing infrastructure exists
+//   (RoutingEngine::ComputeAllWaypoints provides the full waypoint path);
+//   the path could serve as the graph for Algorithm 3's spatial projection.
+//
 #include "WarpDriverModel.hpp"
 
 #include "GenericAgent.hpp"
@@ -145,7 +171,7 @@ STP WarpVelocityForward(const STP& s, double speedB)
     return STP{s.x - speedB * s.t, s.y, s.t};
 }
 
-// W_r: radius scaling. Scale (x,y) by 1/r_b
+// W_r: radius scaling (B.7). W_r(s) = s ★ (1/α, 1/α, 1).
 STP WarpRadiusForward(const STP& s, double radiusB)
 {
     const double invR = 1.0 / std::max(radiusB, 1e-6);
@@ -159,11 +185,32 @@ STP WarpTimeUncertaintyForward(const STP& s, double lambda)
     return STP{s.x * scale, s.y * scale, s.t};
 }
 
-// W_vu: velocity uncertainty. Scale (x,y) by 1/(1 + mu*|v_b|)
-STP WarpVelocityUncertaintyForward(const STP& s, double mu, double speedB)
+struct VelocityUncertaintyScale {
+    double beta1;
+    double beta2;
+};
+
+// B.13: β₁ = 1/(1 + α₁·v/v_pref), β₂ = 1 + α₂·v/v_pref.
+// Since we use v0 for both current and preferred speed, v/v_pref = 1.
+VelocityUncertaintyScale VelocityUncertaintyFactors(
+    double uncertaintyX,
+    double uncertaintyY)
 {
-    const double scale = 1.0 / (1.0 + mu * speedB);
-    return STP{s.x * scale, s.y * scale, s.t};
+    return {
+        1.0 / (1.0 + uncertaintyX),
+        1.0 + uncertaintyY};
+}
+
+// W_vu: velocity uncertainty (B.13). Anisotropic scaling:
+// β₁ = 1/(1 + α₁) compresses x, β₂ = 1 + α₂ expands y.
+STP WarpVelocityUncertaintyForward(
+    const STP& s,
+    double uncertaintyX,
+    double uncertaintyY)
+{
+    const auto [beta1, beta2] =
+        VelocityUncertaintyFactors(uncertaintyX, uncertaintyY);
+    return STP{s.x * beta1, s.y * beta2, s.t};
 }
 
 // Full composition: forward from a's frame to b's Intrinsic Field space
@@ -177,9 +224,20 @@ struct WarpParams {
     double speedB;
     double radiusB;
     double lambda;
-    double mu;
+    double velocityUncertaintyX;
+    double velocityUncertaintyY;
     double timeHorizon;
 };
+
+// Probability scaling (B.5 + B.14): product of inverse probability transforms.
+// W_tu^{-1}(p) = p*beta^2, W_vu^{-1}(p) = p*beta1*beta2.
+double ProbabilityScale(const STP& sOriginal, const WarpParams& p)
+{
+    const double beta_tu = 1.0 / (1.0 + p.lambda * std::max(sOriginal.t, 0.0));
+    const auto [beta1, beta2] = VelocityUncertaintyFactors(
+        p.velocityUncertaintyX, p.velocityUncertaintyY);
+    return beta_tu * beta_tu * beta1 * beta2;
+}
 
 STP ComposeForward(const STP& s, const WarpParams& p)
 {
@@ -187,7 +245,8 @@ STP ComposeForward(const STP& s, const WarpParams& p)
     auto s2 = WarpVelocityForward(s1, p.speedB);
     auto s3 = WarpRadiusForward(s2, p.radiusB);
     auto s4 = WarpTimeUncertaintyForward(s3, p.lambda);
-    auto s5 = WarpVelocityUncertaintyForward(s4, p.mu, p.speedB);
+    auto s5 = WarpVelocityUncertaintyForward(
+        s4, p.velocityUncertaintyX, p.velocityUncertaintyY);
     // Normalize time: map [0, timeHorizon] -> [0, 1]
     s5.t = (p.timeHorizon > 0.0) ? s5.t / p.timeHorizon : 0.0;
     return s5;
@@ -208,35 +267,37 @@ STP ComposeGradientInverse(const Point& gradI, const STP& sOriginal, const WarpP
     // But dI/dt = 0, so gt stays 0 at this point. However, the spatial components
     // pick up time contributions from the velocity shear.
 
-    // W_vu inverse Jacobian: scale (x,y) by (1 + mu*speedB)
+    // W_vu^-1: anisotropic scaling (B.15). Inverse scales gradient by the
+    // forward factors (beta1, beta2) since J_vu = diag(beta1, beta2, 1).
     {
-        const double scale = 1.0 + p.mu * p.speedB;
-        gx *= scale;
-        gy *= scale;
+        const auto [beta1, beta2] = VelocityUncertaintyFactors(
+            p.velocityUncertaintyX, p.velocityUncertaintyY);
+        gx *= beta1;
+        gy *= beta2;
     }
 
-    // W_ts inverse Jacobian: scale (x,y) by (1 + lambda*t), plus cross-term
+    // W_tu^-1 (B.6): spatial gradient scaled by beta, temporal gets cross-terms.
+    // Coordinates at W_tu input = after W_ref -> W_v -> W_r on sOriginal.
     {
-        const double t = sOriginal.t; // time in a's frame
-        const double scale = 1.0 + p.lambda * std::max(t, 0.0);
-        gx *= scale;
-        gy *= scale;
-        // Cross-term: d/dt of scaling introduces spatial->temporal coupling
-        // but since we only need the spatial gradient for velocity correction,
-        // the temporal component is not used in the final solve.
+        const double t = sOriginal.t;
+        const double beta = 1.0 / (1.0 + p.lambda * std::max(t, 0.0));
+        auto sAtTu = WarpLocalForward(sOriginal, p.posA, p.orientA, p.posB, p.orientB);
+        sAtTu = WarpVelocityForward(sAtTu, p.speedB);
+        sAtTu = WarpRadiusForward(sAtTu, p.radiusB);
+        const double gamma1 = -p.lambda * beta * beta * sAtTu.x;
+        const double gamma2 = -p.lambda * beta * beta * sAtTu.y;
+        const double gxOld = gx;
+        const double gyOld = gy;
+        gx *= beta;
+        gy *= beta;
+        gt = gamma1 * gxOld + gamma2 * gyOld + gt;
     }
 
-    // W_r inverse Jacobian: scale (x,y) by radiusB
-    {
-        gx *= p.radiusB;
-        gy *= p.radiusB;
-    }
+    // W_r^-1: identity (B.9).
 
-    // W_v inverse Jacobian: shear introduces time component
-    // x_original = x_warped + speedB * t, so dx/dx_warped = 1, dx/dt = speedB
-    // gradient: gx stays, gt += gx * speedB
+    // W_v^-1 (B.12): g + (0, 0, -v·g.x).
     {
-        gt += gx * p.speedB;
+        gt -= p.speedB * gx;
     }
 
     // W_local inverse Jacobian: rotate from b's frame back to a's frame
@@ -270,7 +331,8 @@ WarpDriverModel::WarpDriverModel(
     double stepSize,
     double sigma,
     double timeUncertainty,
-    double velocityUncertainty,
+    double velocityUncertaintyX,
+    double velocityUncertaintyY,
     int numSamples,
     double jamSpeedThreshold,
     int jamStepCount,
@@ -278,7 +340,8 @@ WarpDriverModel::WarpDriverModel(
     : _timeHorizon(timeHorizon)
     , _stepSize(stepSize)
     , _timeUncertainty(timeUncertainty)
-    , _velocityUncertainty(velocityUncertainty)
+    , _velocityUncertaintyX(velocityUncertaintyX)
+    , _velocityUncertaintyY(velocityUncertaintyY)
     , _numSamples(numSamples)
     , _jamSpeedThreshold(jamSpeedThreshold)
     , _jamStepCount(jamStepCount)
@@ -440,7 +503,8 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
         wp.speedB = nbSpeed;
         wp.radiusB = agentData.radius + nbData->radius; // Minkowski sum
         wp.lambda = _timeUncertainty;
-        wp.mu = _velocityUncertainty;
+        wp.velocityUncertaintyX = _velocityUncertaintyX;
+        wp.velocityUncertaintyY = _velocityUncertaintyY;
         wp.timeHorizon = _timeHorizon;
 
         for(auto& s : samples) {
@@ -452,8 +516,9 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
                 continue;
             }
 
-            // Lookup Intrinsic Field (2D)
-            auto [pB, gradI] = _intrinsicField.Sample(warped.x, warped.y);
+            // Lookup Intrinsic Field (2D) and apply probability scaling (B.5, B.14)
+            auto [intrinsicP, gradI] = _intrinsicField.Sample(warped.x, warped.y);
+            const double pB = intrinsicP * ProbabilityScale(s.r, wp);
 
             if(pB < 1e-12) {
                 continue;

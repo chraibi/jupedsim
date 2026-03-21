@@ -50,7 +50,8 @@ private:
     double _timeHorizon;
     double _stepSize;
     double _timeUncertainty;
-    double _velocityUncertainty;
+    double _velocityUncertaintyX;
+    double _velocityUncertaintyY;
     int _numSamples;
     double _jamSpeedThreshold;
     int _jamStepCount;
@@ -65,7 +66,8 @@ public:
         double stepSize,
         double sigma,
         double timeUncertainty,
-        double velocityUncertainty,
+        double velocityUncertaintyX,
+        double velocityUncertaintyY,
         int numSamples,
         double jamSpeedThreshold,
         int jamStepCount,

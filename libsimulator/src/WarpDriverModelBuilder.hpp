@@ -11,7 +11,8 @@ class WarpDriverModelBuilder
     double _stepSize;
     double _sigma;
     double _timeUncertainty;
-    double _velocityUncertainty;
+    double _velocityUncertaintyX;
+    double _velocityUncertaintyY;
     int _numSamples;
     double _jamSpeedThreshold;
     int _jamStepCount;
@@ -23,7 +24,8 @@ public:
         double stepSize = 0.5,
         double sigma = 0.3,
         double timeUncertainty = 0.5,
-        double velocityUncertainty = 0.2,
+        double velocityUncertaintyX = 0.2,
+        double velocityUncertaintyY = 0.2,
         int numSamples = 20,
         double jamSpeedThreshold = 0.1,
         int jamStepCount = 10,

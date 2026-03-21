@@ -15,7 +15,8 @@ class WarpDriverModel:
         step_size: gradient descent step size (alpha).
         sigma: Gaussian spread of the intrinsic field.
         time_uncertainty: time uncertainty parameter (lambda).
-        velocity_uncertainty: velocity uncertainty parameter (mu).
+        velocity_uncertainty_x: longitudinal velocity uncertainty parameter.
+        velocity_uncertainty_y: lateral velocity uncertainty parameter.
         num_samples: number of trajectory sample points.
         jam_speed_threshold: speed below which an agent is considered jammed [m/s].
         jam_step_count: consecutive jammed steps before entering chill mode.
@@ -26,7 +27,8 @@ class WarpDriverModel:
     step_size: float = 0.5
     sigma: float = 0.3
     time_uncertainty: float = 0.5
-    velocity_uncertainty: float = 0.2
+    velocity_uncertainty_x: float = 0.2
+    velocity_uncertainty_y: float = 0.2
     num_samples: int = 20
     jam_speed_threshold: float = 0.1
     jam_step_count: int = 10
