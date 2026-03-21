@@ -192,24 +192,16 @@ struct VelocityUncertaintyScale {
 
 // B.13: β₁ = 1/(1 + α₁·v/v_pref), β₂ = 1 + α₂·v/v_pref.
 // Since we use v0 for both current and preferred speed, v/v_pref = 1.
-VelocityUncertaintyScale VelocityUncertaintyFactors(
-    double uncertaintyX,
-    double uncertaintyY)
+VelocityUncertaintyScale VelocityUncertaintyFactors(double uncertaintyX, double uncertaintyY)
 {
-    return {
-        1.0 / (1.0 + uncertaintyX),
-        1.0 + uncertaintyY};
+    return {1.0 / (1.0 + uncertaintyX), 1.0 + uncertaintyY};
 }
 
 // W_vu: velocity uncertainty (B.13). Anisotropic scaling:
 // β₁ = 1/(1 + α₁) compresses x, β₂ = 1 + α₂ expands y.
-STP WarpVelocityUncertaintyForward(
-    const STP& s,
-    double uncertaintyX,
-    double uncertaintyY)
+STP WarpVelocityUncertaintyForward(const STP& s, double uncertaintyX, double uncertaintyY)
 {
-    const auto [beta1, beta2] =
-        VelocityUncertaintyFactors(uncertaintyX, uncertaintyY);
+    const auto [beta1, beta2] = VelocityUncertaintyFactors(uncertaintyX, uncertaintyY);
     return STP{s.x * beta1, s.y * beta2, s.t};
 }
 
@@ -234,8 +226,8 @@ struct WarpParams {
 double ProbabilityScale(const STP& sOriginal, const WarpParams& p)
 {
     const double beta_tu = 1.0 / (1.0 + p.lambda * std::max(sOriginal.t, 0.0));
-    const auto [beta1, beta2] = VelocityUncertaintyFactors(
-        p.velocityUncertaintyX, p.velocityUncertaintyY);
+    const auto [beta1, beta2] =
+        VelocityUncertaintyFactors(p.velocityUncertaintyX, p.velocityUncertaintyY);
     return beta_tu * beta_tu * beta1 * beta2;
 }
 
@@ -245,8 +237,7 @@ STP ComposeForward(const STP& s, const WarpParams& p)
     auto s2 = WarpVelocityForward(s1, p.speedB);
     auto s3 = WarpRadiusForward(s2, p.radiusB);
     auto s4 = WarpTimeUncertaintyForward(s3, p.lambda);
-    auto s5 = WarpVelocityUncertaintyForward(
-        s4, p.velocityUncertaintyX, p.velocityUncertaintyY);
+    auto s5 = WarpVelocityUncertaintyForward(s4, p.velocityUncertaintyX, p.velocityUncertaintyY);
     // Normalize time: map [0, timeHorizon] -> [0, 1]
     s5.t = (p.timeHorizon > 0.0) ? s5.t / p.timeHorizon : 0.0;
     return s5;
@@ -270,8 +261,8 @@ STP ComposeGradientInverse(const Point& gradI, const STP& sOriginal, const WarpP
     // W_vu^-1: anisotropic scaling (B.15). Inverse scales gradient by the
     // forward factors (beta1, beta2) since J_vu = diag(beta1, beta2, 1).
     {
-        const auto [beta1, beta2] = VelocityUncertaintyFactors(
-            p.velocityUncertaintyX, p.velocityUncertaintyY);
+        const auto [beta1, beta2] =
+            VelocityUncertaintyFactors(p.velocityUncertaintyX, p.velocityUncertaintyY);
         gx *= beta1;
         gy *= beta2;
     }

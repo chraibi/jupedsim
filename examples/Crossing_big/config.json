@@ -1,0 +1,582 @@
+{
+  "project_version": "2.0",
+  "config": {
+    "simulation_settings": {
+      "simulationParams": {
+        "max_simulation_time": 300,
+        "model_type": "CollisionFreeSpeedModel",
+        "strength_neighbor_repulsion": 2.6,
+        "range_neighbor_repulsion": 0.1,
+        "gcfm_strength_neighbor_repulsion": 0.3,
+        "gcfm_strength_geometry_repulsion": 0.2,
+        "gcfm_max_neighbor_interaction_distance": 2,
+        "gcfm_max_geometry_interaction_distance": 2,
+        "gcfm_max_neighbor_repulsion_force": 9,
+        "gcfm_max_geometry_repulsion_force": 3,
+        "mass": 80,
+        "tau": 0.5,
+        "a_v": 1,
+        "a_min": 0.2,
+        "b_min": 0.2,
+        "b_max": 0.4,
+        "relaxation_time": 0.5,
+        "agent_strength": 2000,
+        "agent_range": 0.08,
+        "T": 1,
+        "s0": 0.5
+      },
+      "numberOfSimulations": 1,
+      "baseSeed": 420
+    },
+    "ui_state": {
+      "useShortestPaths": true
+    }
+  },
+  "exits": {
+    "jps-exits_0": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          17.683598017692567,
+          41.625520982965824
+        ],
+        [
+          17.183598017692567,
+          40.32552098147571
+        ],
+        [
+          14.583598017692566,
+          41.22552098222077
+        ],
+        [
+          14.983598017692566,
+          42.52552098147571
+        ],
+        [
+          17.683598017692567,
+          41.625520982965824
+        ]
+      ],
+      "enable_throughput_throttling": false,
+      "max_throughput": 0
+    },
+    "jps-exits_1": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          35.424795639514926,
+          6.700002368167043
+        ],
+        [
+          36.7035493850708,
+          6.291063591465354
+        ],
+        [
+          33.3809218108654,
+          -4.098810610547662
+        ],
+        [
+          32.10216806530953,
+          -3.689871833845973
+        ],
+        [
+          35.424795639514926,
+          6.700002368167043
+        ]
+      ],
+      "enable_throughput_throttling": false,
+      "max_throughput": 0
+    },
+    "jps-exits_2": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          31.64245960712433,
+          -7.25949304588139
+        ],
+        [
+          32.36251059174538,
+          -7.487156223133207
+        ],
+        [
+          30.87005198597908,
+          -12.2074904281646
+        ],
+        [
+          30.15000100135803,
+          -11.979827250912786
+        ],
+        [
+          31.64245960712433,
+          -7.25949304588139
+        ]
+      ],
+      "enable_throughput_throttling": false,
+      "max_throughput": 0
+    },
+    "jps-exits_3": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          24.86961422562599,
+          -18.3103127297014
+        ],
+        [
+          27.495195740461348,
+          -19.189938377961518
+        ],
+        [
+          21.364471524953842,
+          -37.48944593407214
+        ],
+        [
+          18.738890010118485,
+          -36.60982028581202
+        ],
+        [
+          24.86961422562599,
+          -18.3103127297014
+        ]
+      ],
+      "enable_throughput_throttling": false,
+      "max_throughput": 0
+    },
+    "jps-exits_4": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -8.871656662225723,
+          -30.60945230536163
+        ],
+        [
+          -1.2494873702526093,
+          -33.46415407694876
+        ],
+        [
+          -2.456113892793655,
+          -36.68589573688805
+        ],
+        [
+          -10.07828318476677,
+          -33.83119396530092
+        ],
+        [
+          -8.871656662225723,
+          -30.60945230536163
+        ]
+      ],
+      "enable_throughput_throttling": false,
+      "max_throughput": 0
+    }
+  },
+  "distributions": {
+    "jps-distributions_0": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -21.585103446245192,
+          26.99350306726992
+        ],
+        [
+          -18,
+          25.00000000037253
+        ],
+        [
+          -21,
+          16.00000000037253
+        ],
+        [
+          -24.977015900611878,
+          16.626040996983647
+        ],
+        [
+          -21.585103446245192,
+          26.99350306726992
+        ]
+      ],
+      "parameters": {
+        "number": 20,
+        "radius": 0.2,
+        "v0": 1.3,
+        "use_flow_spawning": true,
+        "flow_start_time": 0,
+        "flow_end_time": 2,
+        "distribution_mode": "by_number",
+        "percentage": null,
+        "use_premovement": false,
+        "premovement_distribution": "gamma",
+        "premovement_param_a": null,
+        "premovement_param_b": null,
+        "premovement_seed": null,
+        "radius_distribution": "constant",
+        "v0_distribution": "constant"
+      }
+    },
+    "jps-distributions_1": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -26.678691720962526,
+          12.543689906969666
+        ],
+        [
+          -23,
+          11.000000000372529
+        ],
+        [
+          -24,
+          7.000000000372529
+        ],
+        [
+          -28.318514394760133,
+          7.872504906728864
+        ],
+        [
+          -26.678691720962526,
+          12.543689906969666
+        ]
+      ],
+      "parameters": {
+        "number": 10,
+        "radius": 0.2,
+        "v0": 1.3,
+        "use_flow_spawning": true,
+        "flow_start_time": 0,
+        "flow_end_time": 2,
+        "distribution_mode": "by_number",
+        "percentage": null,
+        "use_premovement": false,
+        "premovement_distribution": "gamma",
+        "premovement_param_a": null,
+        "premovement_param_b": null,
+        "premovement_seed": null,
+        "radius_distribution": "constant",
+        "v0_distribution": "constant"
+      }
+    },
+    "jps-distributions_2": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -29.87269268631935,
+          2.6918945547193287
+        ],
+        [
+          -26,
+          2.000000000372529
+        ],
+        [
+          -32,
+          -17.99999999962747
+        ],
+        [
+          -36.31349827051163,
+          -16.742519707605243
+        ],
+        [
+          -29.87269268631935,
+          2.6918945547193287
+        ]
+      ],
+      "parameters": {
+        "number": 40,
+        "radius": 0.2,
+        "v0": 1.3,
+        "use_flow_spawning": true,
+        "flow_start_time": 0,
+        "flow_end_time": 2,
+        "distribution_mode": "by_number",
+        "percentage": null,
+        "use_premovement": false,
+        "premovement_distribution": "gamma",
+        "premovement_param_a": null,
+        "premovement_param_b": null,
+        "premovement_seed": null,
+        "radius_distribution": "constant",
+        "v0_distribution": "constant"
+      }
+    }
+  },
+  "checkpoints": {
+    "jps-checkpoints_0": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -15.979360407590866,
+          24.68669067211449
+        ],
+        [
+          -13.651992881298066,
+          23.976293429359792
+        ],
+        [
+          -16.493581855297087,
+          14.66682333163917
+        ],
+        [
+          -18.82094938158989,
+          15.377220574393869
+        ],
+        [
+          -15.979360407590866,
+          24.68669067211449
+        ]
+      ],
+      "waiting_time": 0,
+      "waiting_time_distribution": "constant",
+      "waiting_time_std": 1,
+      "enable_throughput_throttling": false,
+      "max_throughput": 1,
+      "speed_factor": 1
+    },
+    "jps-checkpoints_1": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -19.846963769197465,
+          10.000424898043274
+        ],
+        [
+          -18.348951876163483,
+          9.454819429293275
+        ],
+        [
+          -19.842187893390655,
+          5.354997412487864
+        ],
+        [
+          -21.340199786424638,
+          5.900602880492807
+        ],
+        [
+          -19.846963769197465,
+          10.000424898043274
+        ]
+      ],
+      "waiting_time": 0,
+      "waiting_time_distribution": "constant",
+      "waiting_time_std": 1,
+      "enable_throughput_throttling": false,
+      "max_throughput": 1,
+      "speed_factor": 1
+    },
+    "jps-checkpoints_2": {
+      "type": "polygon",
+      "coordinates": [
+        [
+          -23.573177999258043,
+          0.8650223795324564
+        ],
+        [
+          -21.272950303554534,
+          0.0711355034261942
+        ],
+        [
+          -28.198928916454314,
+          -19.996368208900094
+        ],
+        [
+          -30.499156612157822,
+          -19.20248133279383
+        ],
+        [
+          -23.573177999258043,
+          0.8650223795324564
+        ]
+      ],
+      "waiting_time": 0,
+      "waiting_time_distribution": "constant",
+      "waiting_time_std": 1,
+      "enable_throughput_throttling": false,
+      "max_throughput": 1,
+      "speed_factor": 1
+    }
+  },
+  "zones": {},
+  "journeys": [
+    {
+      "id": "journey_0",
+      "stages": [
+        "jps-distributions_0",
+        "jps-checkpoints_0",
+        "jps-exits_0",
+        "jps-exits_1",
+        "jps-exits_2"
+      ],
+      "transitions": [
+        {
+          "from": "jps-distributions_0",
+          "to": "jps-checkpoints_0",
+          "journey_id": "journey_0"
+        },
+        {
+          "from": "jps-checkpoints_0",
+          "to": "jps-exits_0",
+          "journey_id": "journey_0"
+        },
+        {
+          "from": "jps-checkpoints_0",
+          "to": "jps-exits_1",
+          "journey_id": "journey_0"
+        },
+        {
+          "from": "jps-checkpoints_0",
+          "to": "jps-exits_2",
+          "journey_id": "journey_0"
+        }
+      ]
+    },
+    {
+      "id": "journey_1",
+      "stages": [
+        "jps-distributions_1",
+        "jps-checkpoints_1",
+        "jps-exits_1",
+        "jps-exits_4"
+      ],
+      "transitions": [
+        {
+          "from": "jps-distributions_1",
+          "to": "jps-checkpoints_1",
+          "journey_id": "journey_1"
+        },
+        {
+          "from": "jps-checkpoints_1",
+          "to": "jps-exits_1",
+          "journey_id": "journey_1"
+        },
+        {
+          "from": "jps-checkpoints_1",
+          "to": "jps-exits_4",
+          "journey_id": "journey_1"
+        }
+      ]
+    },
+    {
+      "id": "journey_2",
+      "stages": [
+        "jps-distributions_2",
+        "jps-checkpoints_2",
+        "jps-exits_2",
+        "jps-exits_3"
+      ],
+      "transitions": [
+        {
+          "from": "jps-distributions_2",
+          "to": "jps-checkpoints_2",
+          "journey_id": "journey_2"
+        },
+        {
+          "from": "jps-checkpoints_2",
+          "to": "jps-exits_2",
+          "journey_id": "journey_2"
+        },
+        {
+          "from": "jps-checkpoints_2",
+          "to": "jps-exits_3",
+          "journey_id": "journey_2"
+        }
+      ]
+    }
+  ],
+  "transitions": [
+    {
+      "from": "jps-distributions_0",
+      "to": "jps-checkpoints_0",
+      "journey_id": "journey_0"
+    },
+    {
+      "from": "jps-checkpoints_0",
+      "to": "jps-exits_0",
+      "journey_id": "journey_0"
+    },
+    {
+      "from": "jps-checkpoints_0",
+      "to": "jps-exits_1",
+      "journey_id": "journey_0"
+    },
+    {
+      "from": "jps-checkpoints_0",
+      "to": "jps-exits_2",
+      "journey_id": "journey_0"
+    },
+    {
+      "from": "jps-distributions_1",
+      "to": "jps-checkpoints_1",
+      "journey_id": "journey_1"
+    },
+    {
+      "from": "jps-checkpoints_1",
+      "to": "jps-exits_1",
+      "journey_id": "journey_1"
+    },
+    {
+      "from": "jps-checkpoints_1",
+      "to": "jps-exits_4",
+      "journey_id": "journey_1"
+    },
+    {
+      "from": "jps-distributions_2",
+      "to": "jps-checkpoints_2",
+      "journey_id": "journey_2"
+    },
+    {
+      "from": "jps-checkpoints_2",
+      "to": "jps-exits_2",
+      "journey_id": "journey_2"
+    },
+    {
+      "from": "jps-checkpoints_2",
+      "to": "jps-exits_3",
+      "journey_id": "journey_2"
+    }
+  ],
+  "waypoint_routing": {
+    "jps-checkpoints_0": {
+      "journey_0": {
+        "destinations": [
+          {
+            "target": "jps-exits_0",
+            "percentage": 5
+          },
+          {
+            "target": "jps-exits_1",
+            "percentage": 15
+          },
+          {
+            "target": "jps-exits_2",
+            "percentage": 80
+          }
+        ]
+      }
+    },
+    "jps-checkpoints_1": {
+      "journey_1": {
+        "destinations": [
+          {
+            "target": "jps-exits_1",
+            "percentage": 67
+          },
+          {
+            "target": "jps-exits_4",
+            "percentage": 33
+          }
+        ]
+      }
+    },
+    "jps-checkpoints_2": {
+      "journey_2": {
+        "destinations": [
+          {
+            "target": "jps-exits_2",
+            "percentage": 25
+          },
+          {
+            "target": "jps-exits_3",
+            "percentage": 75
+          }
+        ]
+      }
+    }
+  }
+}
