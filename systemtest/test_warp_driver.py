@@ -43,7 +43,9 @@ def test_simulation_runs(warp_driver_corridor):
     for _ in range(50):
         sim.iterate()
     assert sim.agent_count() == 1
-    assert sim.agent(aid).position[0] > initial_x, "Agent should have moved forward"
+    assert sim.agent(aid).position[0] > initial_x, (
+        "Agent should have moved forward"
+    )
 
 
 def test_single_agent_straight_path(warp_driver_corridor):
