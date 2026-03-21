@@ -151,6 +151,7 @@ class Simulation:
                 num_samples=model.num_samples,
                 jam_speed_threshold=model.jam_speed_threshold,
                 jam_step_count=model.jam_step_count,
+                rng_seed=model.rng_seed,
             )
             py_jps_model = model_builder.build()
         else:

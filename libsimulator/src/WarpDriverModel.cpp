@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <random>
 #include <variant>
 
 // ============================================================================
@@ -274,7 +273,8 @@ WarpDriverModel::WarpDriverModel(
     double velocityUncertainty,
     int numSamples,
     double jamSpeedThreshold,
-    int jamStepCount)
+    int jamStepCount,
+    uint64_t rngSeed)
     : _timeHorizon(timeHorizon)
     , _stepSize(stepSize)
     , _timeUncertainty(timeUncertainty)
@@ -283,6 +283,7 @@ WarpDriverModel::WarpDriverModel(
     , _jamSpeedThreshold(jamSpeedThreshold)
     , _jamStepCount(jamStepCount)
     , _cutOffRadius(3.0 * timeHorizon) // conservative estimate
+    , _rng(rngSeed)
 {
     _intrinsicField.Compute(sigma);
 }
@@ -367,9 +368,6 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
     // Random perturbation: small lateral offset on trajectory samples to break
     // symmetry in perfectly aligned head-on encounters where the gradient field
     // cancels by symmetry, producing no lateral avoidance.
-    std::mt19937 rng(
-        static_cast<uint32_t>(
-            std::hash<double>{}(ped.pos.x * 1000.0 + ped.pos.y) ^ ped.id.getID()));
     std::uniform_real_distribution<double> perturbDist(-0.05, 0.05);
 
     // Storage for per-sample combined probability and gradient
@@ -383,7 +381,7 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
 
     for(int i = 0; i < _numSamples; ++i) {
         const double t = i * dtSample;
-        const double lateralPerturbation = perturbDist(rng);
+        const double lateralPerturbation = perturbDist(_rng);
         samples[static_cast<size_t>(i)] =
             Sample{t, STP{speed * t, lateralPerturbation, t}, 0.0, STP{0, 0, 0}};
     }
@@ -526,13 +524,23 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
         }
     }
 
+    // Re-clamp speed to v0 after wall steering
+    double finalSpeed = newVelWorld.Norm();
+    if(finalSpeed > agentData.v0 && finalSpeed > 1e-9) {
+        newVelWorld = newVelWorld * (agentData.v0 / finalSpeed);
+        finalSpeed = agentData.v0;
+    }
+
     // Jam detection: if speed is below threshold, increment counter
     int jamCounter = agentData.jamCounter;
-    if(newSpeed < _jamSpeedThreshold) {
+    if(finalSpeed < _jamSpeedThreshold) {
         ++jamCounter;
         if(jamCounter >= _jamStepCount) {
-            // Chill mode: skip avoidance correction, just stay in place
-            return WarpDriverModelUpdate{ped.pos, orient, jamCounter};
+            // Chill mode: skip avoidance, creep toward goal, decay counter
+            jamCounter = std::max(0, jamCounter - _jamStepCount / 2);
+            Point chillVel = desiredDir * agentData.v0 * 0.3;
+            Point newPos = ped.pos + chillVel * dT;
+            return WarpDriverModelUpdate{newPos, desiredDir, jamCounter};
         }
     } else {
         jamCounter = 0;

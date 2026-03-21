@@ -11,7 +11,8 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     double velocityUncertainty,
     int numSamples,
     double jamSpeedThreshold,
-    int jamStepCount)
+    int jamStepCount,
+    uint64_t rngSeed)
     : _timeHorizon(timeHorizon)
     , _stepSize(stepSize)
     , _sigma(sigma)
@@ -20,6 +21,7 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     , _numSamples(numSamples)
     , _jamSpeedThreshold(jamSpeedThreshold)
     , _jamStepCount(jamStepCount)
+    , _rngSeed(rngSeed)
 {
 }
 
@@ -65,5 +67,6 @@ WarpDriverModel WarpDriverModelBuilder::Build()
         _velocityUncertainty,
         _numSamples,
         _jamSpeedThreshold,
-        _jamStepCount);
+        _jamStepCount,
+        _rngSeed);
 }

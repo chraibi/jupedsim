@@ -19,6 +19,7 @@ class WarpDriverModel:
         num_samples: number of trajectory sample points.
         jam_speed_threshold: speed below which an agent is considered jammed [m/s].
         jam_step_count: consecutive jammed steps before entering chill mode.
+        rng_seed: seed for the random number generator (for reproducibility).
     """
 
     time_horizon: float = 2.0
@@ -29,6 +30,7 @@ class WarpDriverModel:
     num_samples: int = 20
     jam_speed_threshold: float = 0.1
     jam_step_count: int = 10
+    rng_seed: int = 42
 
 
 @dataclass(kw_only=True)

@@ -29,7 +29,7 @@ def test_simulation_runs(warp_driver_corridor):
     exit_id = sim.add_exit_stage(exit_area)
     journey_id = sim.add_journey(jps.JourneyDescription([exit_id]))
 
-    sim.add_agent(
+    aid = sim.add_agent(
         jps.WarpDriverModelAgentParameters(
             position=(2, 2),
             journey_id=journey_id,
@@ -39,9 +39,11 @@ def test_simulation_runs(warp_driver_corridor):
         )
     )
 
+    initial_x = sim.agent(aid).position[0]
     for _ in range(50):
         sim.iterate()
-    assert sim.agent_count() >= 0
+    assert sim.agent_count() == 1
+    assert sim.agent(aid).position[0] > initial_x, "Agent should have moved forward"
 
 
 def test_single_agent_straight_path(warp_driver_corridor):
@@ -149,21 +151,21 @@ def test_invalid_parameters():
     """Invalid model parameters raise errors at simulation creation."""
     area = shapely.Polygon([(0, 0), (10, 0), (10, 4), (0, 4)])
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="timeHorizon"):
         jps.Simulation(
             model=jps.WarpDriverModel(time_horizon=-1.0),
             geometry=area,
             dt=0.01,
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="sigma"):
         jps.Simulation(
             model=jps.WarpDriverModel(sigma=0.0),
             geometry=area,
             dt=0.01,
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError, match="numSamples"):
         jps.Simulation(
             model=jps.WarpDriverModel(num_samples=0),
             geometry=area,

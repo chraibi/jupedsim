@@ -3,6 +3,8 @@
 
 #include "WarpDriverModel.hpp"
 
+#include <cstdint>
+
 class WarpDriverModelBuilder
 {
     double _timeHorizon;
@@ -13,6 +15,7 @@ class WarpDriverModelBuilder
     int _numSamples;
     double _jamSpeedThreshold;
     int _jamStepCount;
+    uint64_t _rngSeed;
 
 public:
     WarpDriverModelBuilder(
@@ -23,6 +26,7 @@ public:
         double velocityUncertainty = 0.2,
         int numSamples = 20,
         double jamSpeedThreshold = 0.1,
-        int jamStepCount = 10);
+        int jamStepCount = 10,
+        uint64_t rngSeed = 42);
     WarpDriverModel Build();
 };

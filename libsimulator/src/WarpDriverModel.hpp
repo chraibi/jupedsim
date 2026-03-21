@@ -7,7 +7,9 @@
 #include "OperationalModelType.hpp"
 #include "Point.hpp"
 
+#include <cstdint>
 #include <memory>
+#include <random>
 #include <vector>
 
 struct GenericAgent;
@@ -55,6 +57,7 @@ private:
     double _cutOffRadius;
 
     IntrinsicField _intrinsicField;
+    mutable std::mt19937 _rng;
 
 public:
     WarpDriverModel(
@@ -65,7 +68,8 @@ public:
         double velocityUncertainty,
         int numSamples,
         double jamSpeedThreshold,
-        int jamStepCount);
+        int jamStepCount,
+        uint64_t rngSeed = 42);
 
     ~WarpDriverModel() override = default;
 
