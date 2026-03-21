@@ -24,20 +24,44 @@ from shapely import wkt
 SCRIPT_DIR = Path(__file__).parent
 seed = 123
 MODELS = {
-    # "CFSV2": (
-    #     jps.CollisionFreeSpeedModelV2,
-    #     jps.CollisionFreeSpeedModelV2AgentParameters,
-    # ),
-    # "AVM": (
-    #     jps.AnticipationVelocityModel,
-    #     jps.AnticipationVelocityModelAgentParameters,
-    # ),
-    # "SocialForce": (
-    #     jps.SocialForceModel,
-    #     jps.SocialForceModelAgentParameters,
-    # ),
+    "CFSV2": (
+        lambda: jps.CollisionFreeSpeedModelV2(
+            strength_neighbor_repulsion=8.0,
+            range_neighbor_repulsion=0.1,
+            strength_geometry_repulsion=5.0,
+            range_geometry_repulsion=0.02,
+        ),
+        jps.CollisionFreeSpeedModelV2AgentParameters,
+    ),
+    "AVM": (
+        lambda: jps.AnticipationVelocityModel(
+            strength_neighbor_repulsion=8.0,
+            range_neighbor_repulsion=0.1,
+            wall_buffer_distance=0.02,
+            anticipation_time=1.0,
+            reaction_time=0.3,
+        ),
+        jps.AnticipationVelocityModelAgentParameters,
+    ),
+    "SocialForce": (
+        lambda: jps.SocialForceModel(
+            bodyForce=2000,
+            friction=0.08,
+        ),
+        jps.SocialForceModelAgentParameters,
+    ),
     "WarpDriver": (
-        jps.WarpDriverModel,
+        lambda: jps.WarpDriverModel(
+            time_horizon=2.0,
+            step_size=0.5,
+            sigma=0.3,
+            time_uncertainty=0.5,
+            velocity_uncertainty=0.2,
+            num_samples=20,
+            jam_speed_threshold=0.1,
+            jam_step_count=10,
+            rng_seed=42,
+        ),
         jps.WarpDriverModelAgentParameters,
     ),
 }
@@ -257,8 +281,8 @@ SCENARIOS = {
 
 def run_single(scenario_name, model_name):
     scen = SCENARIOS[scenario_name]
-    model_cls, agent_cls = MODELS[model_name]
-    model = model_cls()
+    model_factory, agent_cls = MODELS[model_name]
+    model = model_factory()
 
     sqlite_file = f"{scenario_name}_{model_name.lower()}.sqlite"
     writer = jps.SqliteTrajectoryWriter(output_file=sqlite_file)
