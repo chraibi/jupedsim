@@ -29,7 +29,7 @@ void WarpDriverModel::IntrinsicField::Compute(double sigma)
     // Compute I(x,y) = (f * g)(x,y) where g = unit disk, f = Gaussian(sigma).
     // For each grid point, numerically integrate the convolution over the disk.
     const double intStep = 0.05;
-    const double intRadius = 1.0 + 4.0 * sigma; // integration bound
+    const double intRadius = 1.0; // unit disk support
 
     for(int ix = 0; ix < nx; ++ix) {
         for(int iy = 0; iy < ny; ++iy) {
@@ -540,9 +540,12 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
     const auto& walls = geometry.LineSegmentsInApproxDistanceTo(ped.pos);
     for(const auto& wall : walls) {
         const Point wallVec = wall.p2 - wall.p1;
+        const double wallLen2 = wallVec.ScalarProduct(wallVec);
+        if(wallLen2 < 1e-12) {
+            continue; // degenerate wall segment
+        }
         const Point toAgent = ped.pos - wall.p1;
-        const double t =
-            std::clamp(toAgent.ScalarProduct(wallVec) / wallVec.ScalarProduct(wallVec), 0.0, 1.0);
+        const double t = std::clamp(toAgent.ScalarProduct(wallVec) / wallLen2, 0.0, 1.0);
         const Point closest = wall.p1 + wallVec * t;
         const Point diff = ped.pos - closest;
         const double dist = diff.Norm();
