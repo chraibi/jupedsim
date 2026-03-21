@@ -11,8 +11,6 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     double velocityUncertaintyX,
     double velocityUncertaintyY,
     int numSamples,
-    double jamSpeedThreshold,
-    int jamStepCount,
     uint64_t rngSeed)
     : _timeHorizon(timeHorizon)
     , _stepSize(stepSize)
@@ -21,8 +19,6 @@ WarpDriverModelBuilder::WarpDriverModelBuilder(
     , _velocityUncertaintyX(velocityUncertaintyX)
     , _velocityUncertaintyY(velocityUncertaintyY)
     , _numSamples(numSamples)
-    , _jamSpeedThreshold(jamSpeedThreshold)
-    , _jamStepCount(jamStepCount)
     , _rngSeed(rngSeed)
 {
 }
@@ -57,14 +53,6 @@ WarpDriverModel WarpDriverModelBuilder::Build()
         throw SimulationError(
             "WarpDriverModelBuilder: numSamples must be > 0, got {}", _numSamples);
     }
-    if(_jamSpeedThreshold < 0.0) {
-        throw SimulationError(
-            "WarpDriverModelBuilder: jamSpeedThreshold must be >= 0, got {}", _jamSpeedThreshold);
-    }
-    if(_jamStepCount <= 0) {
-        throw SimulationError(
-            "WarpDriverModelBuilder: jamStepCount must be > 0, got {}", _jamStepCount);
-    }
 
     return WarpDriverModel(
         _timeHorizon,
@@ -74,7 +62,5 @@ WarpDriverModel WarpDriverModelBuilder::Build()
         _velocityUncertaintyX,
         _velocityUncertaintyY,
         _numSamples,
-        _jamSpeedThreshold,
-        _jamStepCount,
         _rngSeed);
 }

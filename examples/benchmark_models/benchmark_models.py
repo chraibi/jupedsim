@@ -59,8 +59,6 @@ MODELS = {
             velocity_uncertainty_x=0.2,  # longitudinal speed uncertainty
             velocity_uncertainty_y=0.2,  # lateral speed uncertainty
             num_samples=20,  # trajectory sample points (cost ~ samples x neighbors)
-            jam_speed_threshold=0.1,  # speed below which agent is jammed [m/s]
-            jam_step_count=10,  # jammed steps before entering chill mode
             rng_seed=42,  # RNG seed for symmetry-breaking perturbations
         ),
         jps.WarpDriverModelAgentParameters,
@@ -216,18 +214,18 @@ def _add_crossing(sim, agent_cls, routes, n=15):
             "west",
             (-1, 0),
         ),
-        # "N→S": (
-        #     shapely.Polygon([(-1.5, 9.5), (1.5, 9.5), (1.5, 7.0), (-1.5, 7.0)]),
-        #     "south",
-        #     (0, -1),
-        # ),
-        # "W→E": (
-        #     shapely.Polygon(
-        #         [(-9.5, -1.5), (-8.0, -1.5), (-8.0, 1.5), (-9.5, 1.5)]
-        #     ),
-        #     "east",
-        #     (1, 0),
-        # ),
+        "N→S": (
+            shapely.Polygon([(-1.5, 9.5), (1.5, 9.5), (1.5, 7.0), (-1.5, 7.0)]),
+            "south",
+            (0, -1),
+        ),
+        "W→E": (
+            shapely.Polygon(
+                [(-9.5, -1.5), (-8.0, -1.5), (-8.0, 1.5), (-9.5, 1.5)]
+            ),
+            "east",
+            (1, 0),
+        ),
     }
     streams = {}
     for stream_name, (spawn_poly, dest, orient) in sources.items():

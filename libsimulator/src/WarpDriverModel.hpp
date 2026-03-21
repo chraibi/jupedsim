@@ -53,8 +53,6 @@ private:
     double _velocityUncertaintyX;
     double _velocityUncertaintyY;
     int _numSamples;
-    double _jamSpeedThreshold;
-    int _jamStepCount;
     double _cutOffRadius;
 
     IntrinsicField _intrinsicField;
@@ -69,8 +67,6 @@ public:
         double velocityUncertaintyX,
         double velocityUncertaintyY,
         int numSamples,
-        double jamSpeedThreshold,
-        int jamStepCount,
         uint64_t rngSeed = 42);
 
     ~WarpDriverModel() override = default;

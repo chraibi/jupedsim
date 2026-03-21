@@ -325,8 +325,6 @@ WarpDriverModel::WarpDriverModel(
     double velocityUncertaintyX,
     double velocityUncertaintyY,
     int numSamples,
-    double jamSpeedThreshold,
-    int jamStepCount,
     uint64_t rngSeed)
     : _timeHorizon(timeHorizon)
     , _stepSize(stepSize)
@@ -334,8 +332,6 @@ WarpDriverModel::WarpDriverModel(
     , _velocityUncertaintyX(velocityUncertaintyX)
     , _velocityUncertaintyY(velocityUncertaintyY)
     , _numSamples(numSamples)
-    , _jamSpeedThreshold(jamSpeedThreshold)
-    , _jamStepCount(jamStepCount)
     , _cutOffRadius(3.0 * timeHorizon) // conservative estimate
     , _rng(rngSeed)
 {

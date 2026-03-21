@@ -18,8 +18,6 @@ class WarpDriverModel:
         velocity_uncertainty_x: longitudinal velocity uncertainty parameter.
         velocity_uncertainty_y: lateral velocity uncertainty parameter.
         num_samples: number of trajectory sample points.
-        jam_speed_threshold: speed below which an agent is considered jammed [m/s].
-        jam_step_count: consecutive jammed steps before entering chill mode.
         rng_seed: seed for the random number generator (for reproducibility).
     """
 
@@ -30,8 +28,6 @@ class WarpDriverModel:
     velocity_uncertainty_x: float = 0.2
     velocity_uncertainty_y: float = 0.2
     num_samples: int = 20
-    jam_speed_threshold: float = 0.1
-    jam_step_count: int = 10
     rng_seed: int = 42
 
 

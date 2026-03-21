@@ -14,8 +14,6 @@ class WarpDriverModelBuilder
     double _velocityUncertaintyX;
     double _velocityUncertaintyY;
     int _numSamples;
-    double _jamSpeedThreshold;
-    int _jamStepCount;
     uint64_t _rngSeed;
 
 public:
@@ -27,8 +25,6 @@ public:
         double velocityUncertaintyX = 0.2,
         double velocityUncertaintyY = 0.2,
         int numSamples = 20,
-        double jamSpeedThreshold = 0.1,
-        int jamStepCount = 10,
         uint64_t rngSeed = 42);
     WarpDriverModel Build();
 };

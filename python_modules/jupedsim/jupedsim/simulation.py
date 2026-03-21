@@ -150,8 +150,6 @@ class Simulation:
                 velocity_uncertainty_x=model.velocity_uncertainty_x,
                 velocity_uncertainty_y=model.velocity_uncertainty_y,
                 num_samples=model.num_samples,
-                jam_speed_threshold=model.jam_speed_threshold,
-                jam_step_count=model.jam_step_count,
                 rng_seed=model.rng_seed,
             )
             py_jps_model = model_builder.build()
