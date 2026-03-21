@@ -355,10 +355,15 @@ std::unique_ptr<OperationalModel> WarpDriverModel::Clone() const
 void WarpDriverModel::ApplyUpdate(const OperationalModelUpdate& update, GenericAgent& agent) const
 {
     const auto& upd = std::get<WarpDriverModelUpdate>(update);
+    auto& data = std::get<WarpDriverModelData>(agent.model);
     agent.pos = upd.position;
     agent.orientation = upd.orientation;
-    auto& data = std::get<WarpDriverModelData>(agent.model);
     data.jamCounter = upd.jamCounter;
+    data.stuckTime = upd.stuckTime;
+    data.anchorX = upd.anchorX;
+    data.anchorY = upd.anchorY;
+    data.detourTime = upd.detourTime;
+    data.detourSide = upd.detourSide;
 }
 
 void WarpDriverModel::CheckModelConstraint(
@@ -618,23 +623,81 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
         finalSpeed = agentData.v0;
     }
 
-    // Jam detection: if speed is below threshold, increment counter
+    // Stuck detection: measure net displacement from an anchor position over a
+    // time window. Catches oscillating agents that periodically spike above the
+    // speed threshold but make no real progress.
     int jamCounter = agentData.jamCounter;
-    if(finalSpeed < _jamSpeedThreshold) {
-        ++jamCounter;
-        if(jamCounter >= _jamStepCount) {
-            // Chill mode: skip avoidance, creep toward goal, decay counter
-            jamCounter = std::max(0, jamCounter - _jamStepCount / 2);
-            Point chillVel = desiredDir * agentData.v0 * 0.3;
-            Point newPos = ped.pos + chillVel * dT;
-            return WarpDriverModelUpdate{newPos, desiredDir, jamCounter};
+    double stuckTime = agentData.stuckTime;
+    double anchorX = agentData.anchorX;
+    double anchorY = agentData.anchorY;
+    double detourTime = agentData.detourTime;
+    int detourSide = agentData.detourSide;
+
+    // Detour mode: agent is currently on a lateral detour to break a deadlock
+    if(detourTime > 0.0) {
+        detourTime -= dT;
+        Point lateral{-desiredDir.y * detourSide, desiredDir.x * detourSide};
+        Point detourDir = (lateral * 0.8 + desiredDir * 0.2).Normalized();
+        Point detourVel = detourDir * agentData.v0 * 0.5;
+        Point newPos = ped.pos + detourVel * dT;
+        // If detour would leave the walkable area, try the other side
+        if(!geometry.InsideGeometry(newPos)) {
+            detourSide = -detourSide;
+            lateral = Point{-desiredDir.y * detourSide, desiredDir.x * detourSide};
+            detourDir = (lateral * 0.8 + desiredDir * 0.2).Normalized();
+            detourVel = detourDir * agentData.v0 * 0.5;
+            newPos = ped.pos + detourVel * dT;
+            // If both sides fail, just creep toward goal
+            if(!geometry.InsideGeometry(newPos)) {
+                newPos = ped.pos + desiredDir * agentData.v0 * 0.1 * dT;
+                detourDir = desiredDir;
+            }
         }
-    } else {
-        jamCounter = 0;
+        if(detourTime <= 0.0) {
+            detourTime = 0.0;
+            stuckTime = 0.0;
+            anchorX = newPos.x;
+            anchorY = newPos.y;
+            jamCounter = 0;
+        }
+        return WarpDriverModelUpdate{
+            newPos, detourDir, jamCounter, stuckTime, anchorX, anchorY, detourTime, detourSide};
     }
 
-    Point newPos = ped.pos + newVelWorld * dT;
-    Point newOrient = (newVelWorld.Norm() > 1e-9) ? newVelWorld.Normalized() : orient;
+    // Measure net displacement from anchor over the stuck window
+    constexpr double stuckThreshold = 5.0; // seconds before triggering detour
+    constexpr double detourDuration = 1.0; // seconds of lateral movement
+    constexpr double progressRadius = 0.3; // must move this far from anchor to count as progress
 
-    return WarpDriverModelUpdate{newPos, newOrient, jamCounter};
+    stuckTime += dT;
+    const double netDisplacement = std::hypot(ped.pos.x - anchorX, ped.pos.y - anchorY);
+
+    if(netDisplacement > progressRadius) {
+        // Real progress — reset anchor to current position
+        stuckTime = 0.0;
+        anchorX = ped.pos.x;
+        anchorY = ped.pos.y;
+        jamCounter = 0;
+    } else if(stuckTime >= stuckThreshold) {
+        // Stuck: no net progress for stuckThreshold seconds — enter detour
+        std::uniform_int_distribution<int> sideDist(0, 1);
+        detourSide = sideDist(_rng) * 2 - 1; // -1 or +1
+        detourTime = detourDuration;
+        stuckTime = 0.0;
+    }
+
+    // Velocity smoothing: blend new velocity with previous orientation to damp
+    // oscillations in dense clusters where agents flip direction every frame.
+    const double smoothing = 0.5; // weight of new velocity (1.0 = no smoothing)
+    Point smoothedVel = newVelWorld * smoothing + orient * (newVelWorld.Norm() * (1.0 - smoothing));
+    double smoothedSpeed = smoothedVel.Norm();
+    if(smoothedSpeed > agentData.v0 && smoothedSpeed > 1e-9) {
+        smoothedVel = smoothedVel * (agentData.v0 / smoothedSpeed);
+    }
+
+    Point newPos = ped.pos + smoothedVel * dT;
+    Point newOrient = (smoothedVel.Norm() > 1e-9) ? smoothedVel.Normalized() : orient;
+
+    return WarpDriverModelUpdate{
+        newPos, newOrient, jamCounter, stuckTime, anchorX, anchorY, detourTime, detourSide};
 }
