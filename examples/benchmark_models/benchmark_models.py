@@ -24,18 +24,18 @@ from shapely import wkt
 SCRIPT_DIR = Path(__file__).parent
 seed = 123
 MODELS = {
-    "CFSV2": (
-        jps.CollisionFreeSpeedModelV2,
-        jps.CollisionFreeSpeedModelV2AgentParameters,
-    ),
-    "AVM": (
-        jps.AnticipationVelocityModel,
-        jps.AnticipationVelocityModelAgentParameters,
-    ),
-    "SocialForce": (
-        jps.SocialForceModel,
-        jps.SocialForceModelAgentParameters,
-    ),
+    # "CFSV2": (
+    #     jps.CollisionFreeSpeedModelV2,
+    #     jps.CollisionFreeSpeedModelV2AgentParameters,
+    # ),
+    # "AVM": (
+    #     jps.AnticipationVelocityModel,
+    #     jps.AnticipationVelocityModelAgentParameters,
+    # ),
+    # "SocialForce": (
+    #     jps.SocialForceModel,
+    #     jps.SocialForceModelAgentParameters,
+    # ),
     "WarpDriver": (
         jps.WarpDriverModel,
         jps.WarpDriverModelAgentParameters,
@@ -227,20 +227,20 @@ def _add_crossing(sim, agent_cls, routes, n=15):
 # ── Scenario registry ───────────────────────────────────────────────────
 
 SCENARIOS = {
-    "bidirectional": {
-        "setup": _setup_bidirectional,
-        "add": lambda sim, cls, routes, **kw: _add_bidirectional(
-            sim, cls, routes, n=50
-        ),
-        "max_steps": 100000,
-        "title": "Bidirectional (50+50)",
-    },
-    "bottleneck": {
-        "setup": _setup_bottleneck,
-        "add": None,  # needs geometry, handled below
-        "max_steps": 100000,
-        "title": "Bottleneck (200)",
-    },
+    # "bidirectional": {
+    #     "setup": _setup_bidirectional,
+    #     "add": lambda sim, cls, routes, **kw: _add_bidirectional(
+    #         sim, cls, routes, n=50
+    #     ),
+    #     "max_steps": 100000,
+    #     "title": "Bidirectional (50+50)",
+    # },
+    # "bottleneck": {
+    #     "setup": _setup_bottleneck,
+    #     "add": None,  # needs geometry, handled below
+    #     "max_steps": 100000,
+    #     "title": "Bottleneck (200)",
+    # },
     "crossing": {
         "setup": _setup_crossing,
         "add": lambda sim, cls, routes, **kw: _add_crossing(
@@ -491,22 +491,22 @@ def main():
         gridspec_kw={"height_ratios": [3, 1, 1] * n_scenarios},
     )
 
-    for i, (scenario_name, results) in enumerate(all_results.items()):
-        scen = SCENARIOS[scenario_name]
-        traj_row = i * 3
-        fluct_row = i * 3 + 1
-        order_row = i * 3 + 2
-        plot_scenario(results, axes[traj_row])
-        axes[traj_row][0].set_ylabel(scen["title"], fontsize=10)
-        plot_fluctuation(results, axes[fluct_row])
-        axes[fluct_row][0].set_ylabel("$\\phi_v$", fontsize=9)
-        plot_order_parameter(results, axes[order_row])
-        axes[order_row][0].set_ylabel("$\\phi_d$", fontsize=9)
+    # for i, (scenario_name, results) in enumerate(all_results.items()):
+    #     scen = SCENARIOS[scenario_name]
+    #     traj_row = i * 3
+    #     fluct_row = i * 3 + 1
+    #     order_row = i * 3 + 2
+    #     plot_scenario(results, axes[traj_row])
+    #     axes[traj_row][0].set_ylabel(scen["title"], fontsize=10)
+    #     plot_fluctuation(results, axes[fluct_row])
+    #     axes[fluct_row][0].set_ylabel("$\\phi_v$", fontsize=9)
+    #     plot_order_parameter(results, axes[order_row])
+    #     axes[order_row][0].set_ylabel("$\\phi_d$", fontsize=9)
 
-    fig.suptitle("Model Comparison", fontsize=14, y=1.01)
-    fig.tight_layout()
-    fig.savefig("benchmark_models.pdf", bbox_inches="tight")
-    print("\nPlot saved to benchmark_models.pdf")
+    # fig.suptitle("Model Comparison", fontsize=14, y=1.01)
+    # fig.tight_layout()
+    # fig.savefig("benchmark_models.pdf", bbox_inches="tight")
+    # print("\nPlot saved to benchmark_models.pdf")
 
 
 if __name__ == "__main__":

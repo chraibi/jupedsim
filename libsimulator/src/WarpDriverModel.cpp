@@ -365,6 +365,31 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
     // === Step 2: Perceive - build collision probability field ===
     const auto neighbors = neighborhoodSearch.GetNeighboringAgents(ped.pos, _cutOffRadius);
 
+    // Short-range repulsion: not part of the original Wolinski et al. (2016)
+    // model, which is purely anticipatory. Added as a practical safety net
+    // because the collision probability field alone cannot guarantee separation
+    // when agents are already close (dense crowds, late reactions).
+    // Similar to the pushout mechanisms in CFS and AVM.
+    Point repulsion{0.0, 0.0};
+    for(const auto& neighbor : neighbors) {
+        if(neighbor.id == ped.id) {
+            continue;
+        }
+        const auto* nbData = std::get_if<WarpDriverModelData>(&neighbor.model);
+        if(!nbData) {
+            continue;
+        }
+        Point diff = ped.pos - neighbor.pos;
+        const double dist = diff.Norm();
+        const double combinedRadius = agentData.radius + nbData->radius;
+        if(dist < combinedRadius * 3.0 && dist > 1e-6) {
+            const double overlap = combinedRadius * 3.0 - dist;
+            repulsion = repulsion + diff.Normalized() * (speed * overlap / dist);
+        } else if(dist <= 1e-6) {
+            repulsion = repulsion + Point{-desiredDir.y, desiredDir.x} * speed;
+        }
+    }
+
     // Random perturbation: small lateral offset on trajectory samples to break
     // symmetry in perfectly aligned head-on encounters where the gradient field
     // cancels by symmetry, producing no lateral avoidance.
@@ -507,6 +532,9 @@ OperationalModelUpdate WarpDriverModel::ComputeNewPosition(
     } else {
         newVelWorld = desiredDir * agentData.v0 * 0.01; // tiny push towards goal
     }
+
+    // Agent repulsion
+    newVelWorld = newVelWorld + repulsion;
 
     // Boundary avoidance: steer agents away from walls
     const auto& walls = geometry.LineSegmentsInApproxDistanceTo(ped.pos);
