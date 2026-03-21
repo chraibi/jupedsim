@@ -227,20 +227,20 @@ def _add_crossing(sim, agent_cls, routes, n=15):
 # ── Scenario registry ───────────────────────────────────────────────────
 
 SCENARIOS = {
-    # "bidirectional": {
-    #     "setup": _setup_bidirectional,
-    #     "add": lambda sim, cls, routes, **kw: _add_bidirectional(
-    #         sim, cls, routes, n=50
-    #     ),
-    #     "max_steps": 100000,
-    #     "title": "Bidirectional (50+50)",
-    # },
-    # "bottleneck": {
-    #     "setup": _setup_bottleneck,
-    #     "add": None,  # needs geometry, handled below
-    #     "max_steps": 100000,
-    #     "title": "Bottleneck (200)",
-    # },
+    "bidirectional": {
+        "setup": _setup_bidirectional,
+        "add": lambda sim, cls, routes, **kw: _add_bidirectional(
+            sim, cls, routes, n=50
+        ),
+        "max_steps": 100000,
+        "title": "Bidirectional (50+50)",
+    },
+    "bottleneck": {
+        "setup": _setup_bottleneck,
+        "add": None,  # needs geometry, handled below
+        "max_steps": 100000,
+        "title": "Bottleneck (200)",
+    },
     "crossing": {
         "setup": _setup_crossing,
         "add": lambda sim, cls, routes, **kw: _add_crossing(
