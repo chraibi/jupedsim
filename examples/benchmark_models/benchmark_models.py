@@ -26,41 +26,41 @@ seed = 123
 MODELS = {
     "CFSV2": (
         lambda: jps.CollisionFreeSpeedModelV2(
-            strength_neighbor_repulsion=8.0,
-            range_neighbor_repulsion=0.1,
-            strength_geometry_repulsion=5.0,
-            range_geometry_repulsion=0.02,
+            strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
+            range_neighbor_repulsion=0.1,  # exponential decay length [m]
+            strength_geometry_repulsion=5.0,  # wall repulsive force magnitude [N]
+            range_geometry_repulsion=0.02,  # wall exponential decay length [m]
         ),
         jps.CollisionFreeSpeedModelV2AgentParameters,
     ),
     "AVM": (
         lambda: jps.AnticipationVelocityModel(
-            strength_neighbor_repulsion=8.0,
-            range_neighbor_repulsion=0.1,
-            wall_buffer_distance=0.02,
-            anticipation_time=1.0,
-            reaction_time=0.3,
+            strength_neighbor_repulsion=8.0,  # repulsive force magnitude [N]
+            range_neighbor_repulsion=0.1,  # exponential decay length [m]
+            wall_buffer_distance=0.02,  # min distance to walls [m]
+            anticipation_time=1.0,  # look-ahead for neighbor prediction [s]
+            reaction_time=0.3,  # velocity relaxation time [s]
         ),
         jps.AnticipationVelocityModelAgentParameters,
     ),
     "SocialForce": (
         lambda: jps.SocialForceModel(
-            bodyForce=2000,
-            friction=0.08,
+            bodyForce=2000,  # contact body force strength [N]
+            friction=0.08,  # sliding friction coefficient
         ),
         jps.SocialForceModelAgentParameters,
     ),
     "WarpDriver": (
         lambda: jps.WarpDriverModel(
-            time_horizon=2.0,
-            step_size=0.5,
-            sigma=0.3,
-            time_uncertainty=0.5,
-            velocity_uncertainty=0.2,
-            num_samples=20,
-            jam_speed_threshold=0.1,
-            jam_step_count=10,
-            rng_seed=42,
+            time_horizon=2.0,  # collision prediction horizon [s]
+            step_size=0.5,  # gradient descent step size (avoidance strength)
+            sigma=0.3,  # Gaussian spread of intrinsic field
+            time_uncertainty=0.5,  # temporal spread of collision field
+            velocity_uncertainty=0.2,  # velocity-dependent spread of collision field
+            num_samples=20,  # trajectory sample points (cost ~ samples x neighbors)
+            jam_speed_threshold=0.1,  # speed below which agent is jammed [m/s]
+            jam_step_count=10,  # jammed steps before entering chill mode
+            rng_seed=42,  # RNG seed for symmetry-breaking perturbations
         ),
         jps.WarpDriverModelAgentParameters,
     ),
