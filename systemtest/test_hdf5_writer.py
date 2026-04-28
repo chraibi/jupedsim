@@ -102,3 +102,31 @@ def test_close_is_idempotent(tmp_path):
         sim.iterate()
     writer.close()
     writer.close()  # second call must not raise
+
+
+def test_close_without_begin_writing(tmp_path):
+    """Closing an unused writer must not raise (no /trajectory dataset)."""
+    out = tmp_path / "untouched.h5"
+    writer = jps.Hdf5TrajectoryWriter(output_file=out, every_nth_frame=1)
+    writer.close()
+    with h5py.File(out, "r") as hf:
+        assert "trajectory" not in hf
+
+
+def test_static_geometry_omits_geometry_group(square_simulation):
+    """For runs with a single geometry the /geometry group is absent."""
+    with h5py.File(square_simulation, "r") as hf:
+        assert "geometry" not in hf
+        assert "frame_geometry" not in hf
+        assert "wkt_geometry" in hf.attrs
+
+
+def test_geometry_hash_is_deterministic():
+    """The geometry hash must not depend on PYTHONHASHSEED."""
+    from jupedsim.hdf5_serialization import _stable_geometry_hash
+
+    wkt = "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"
+    assert _stable_geometry_hash(wkt) == _stable_geometry_hash(wkt)
+    assert _stable_geometry_hash(wkt) != _stable_geometry_hash(
+        "POLYGON ((0 0, 2 0, 2 2, 0 2, 0 0))"
+    )

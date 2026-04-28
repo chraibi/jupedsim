@@ -14,6 +14,7 @@ if it is not installed.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import json
 import pathlib
 from typing import Final
@@ -58,6 +59,18 @@ def _trajectory_dtype() -> "np.dtype":
     )
 
 
+def _stable_geometry_hash(wkt: str) -> int:
+    """Deterministic 64-bit signed identifier for a WKT string.
+
+    We use a truncated BLAKE2b digest rather than ``hash(wkt)``: Python's
+    built-in string hash is salted with ``PYTHONHASHSEED`` and changes
+    between processes, so it cannot be persisted into a file format and
+    expected to match a future read.
+    """
+    digest = hashlib.blake2b(wkt.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, "big", signed=True)
+
+
 class Hdf5TrajectoryWriter(TrajectoryWriter):
     """Write trajectory data to an HDF5 file.
 
@@ -72,11 +85,11 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
     - Additional root attributes describing the producer, schema
       version, time step, frame interval, bounding box, and creation
       timestamp.
-    - ``/geometry/{wkt,hash}`` and ``/frame_geometry`` -- only present
-      when the simulation geometry changes during the run; preserves
-      the per-frame geometry mapping that
-      :class:`~jupedsim.sqlite_serialization.SqliteTrajectoryWriter`
-      records. PedPy ignores these.
+    - ``/geometry/{wkt,hash}`` and ``/frame_geometry`` -- only created
+      when the simulation geometry actually changes during the run; for
+      runs with a single static geometry the per-frame mapping is
+      redundant with the root ``wkt_geometry`` attribute and is
+      omitted. PedPy ignores these in any case.
 
     Parameters
     ----------
@@ -87,7 +100,8 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
         Write every n-th simulation iteration (1 = every frame).
     commit_every_nth_write:
         How many recorded frames to buffer in memory before extending
-        the on-disk dataset.
+        the on-disk dataset. Each recorded frame contributes one row
+        per agent.
     compression_level:
         gzip level for the trajectory dataset, 0 (off) to 9 (max).
         On trajectory data the bulk of the size reduction is already
@@ -128,8 +142,18 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
         self._frame_geom_ds: h5py.Dataset | None = None
 
         self._buffer: list[tuple] = []
-        self._known_geometry_hashes: set[int] = set()
+        self._frames_since_flush: int = 0
+
+        # Cache of bounds keyed by deterministic WKT hash so we don't
+        # re-parse WKT every frame for static geometry.
+        self._bounds_cache: dict[int, tuple[float, float, float, float]] = {}
+
+        # Tracks the unique-geometry registry. Datasets in /geometry are
+        # only created once a *second* distinct WKT is observed.
+        self._initial_wkt_hash: int | None = None
+        self._extra_geometry_hashes: set[int] = set()
         self._frame_geometry_buffer: list[tuple[int, int]] = []
+        self._last_recorded_geometry_hash: int | None = None
 
         self._xmin = float("inf")
         self._xmax = float("-inf")
@@ -202,6 +226,9 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
             _dt.timezone.utc
         ).isoformat()
 
+        self._initial_wkt_hash = _stable_geometry_hash(wkt)
+        self._update_bounds(wkt, self._initial_wkt_hash)
+
     def write_iteration_state(self, simulation: Simulation) -> None:
         if self._file is None or self._traj_ds is None:
             raise TrajectoryWriter.Exception("File not opened.")
@@ -225,33 +252,23 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
             )
 
         wkt = simulation.get_geometry().as_wkt()
-        wkt_hash = hash(wkt)
-        if wkt_hash not in self._known_geometry_hashes:
-            self._known_geometry_hashes.add(wkt_hash)
-            self._append_unique_geometry(wkt, wkt_hash)
-        self._frame_geometry_buffer.append((frame, wkt_hash))
+        wkt_hash = _stable_geometry_hash(wkt)
+        self._update_bounds(wkt, wkt_hash)
+        self._record_frame_geometry(frame, wkt, wkt_hash)
 
-        xmin, ymin, xmax, ymax = from_wkt(wkt).bounds
-        self._xmin = min(self._xmin, xmin)
-        self._xmax = max(self._xmax, xmax)
-        self._ymin = min(self._ymin, ymin)
-        self._ymax = max(self._ymax, ymax)
-
-        if len(self._buffer) >= self._commit_every_nth_write * max(
-            1, simulation.agent_count()
-        ):
+        self._frames_since_flush += 1
+        if self._frames_since_flush >= self._commit_every_nth_write:
             self._flush()
 
     def close(self) -> None:
         """Flush remaining buffers, write final attributes, and close."""
         if self._file is None:
             return
-        self._flush()
+        if self._traj_ds is not None:
+            self._flush()
         if all(
-            map(
-                lambda v: v != float("inf") and v != float("-inf"),
-                [self._xmin, self._xmax, self._ymin, self._ymax],
-            )
+            v not in (float("inf"), float("-inf"))
+            for v in (self._xmin, self._xmax, self._ymin, self._ymax)
         ):
             self._file.attrs["xmin"] = self._xmin
             self._file.attrs["xmax"] = self._xmax
@@ -268,8 +285,57 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
 
     # ----- internal helpers --------------------------------------------------
 
+    def _update_bounds(self, wkt: str, wkt_hash: int) -> None:
+        bounds = self._bounds_cache.get(wkt_hash)
+        if bounds is None:
+            xmin, ymin, xmax, ymax = from_wkt(wkt).bounds
+            bounds = (xmin, ymin, xmax, ymax)
+            self._bounds_cache[wkt_hash] = bounds
+        xmin, ymin, xmax, ymax = bounds
+        self._xmin = min(self._xmin, xmin)
+        self._xmax = max(self._xmax, xmax)
+        self._ymin = min(self._ymin, ymin)
+        self._ymax = max(self._ymax, ymax)
+
+    def _record_frame_geometry(
+        self, frame: int, wkt: str, wkt_hash: int
+    ) -> None:
+        if self._initial_wkt_hash is None:
+            # begin_writing always sets this; defensive only.
+            self._initial_wkt_hash = wkt_hash
+            self._last_recorded_geometry_hash = wkt_hash
+            return
+        if (
+            wkt_hash == self._initial_wkt_hash
+            and not self._extra_geometry_hashes
+        ):
+            # Static geometry so far -- nothing to record.
+            self._last_recorded_geometry_hash = wkt_hash
+            return
+
+        # Geometry has changed at some point during the run. Make sure
+        # the geometry datasets exist and back-fill the registry on the
+        # first transition.
+        if not self._extra_geometry_hashes:
+            self._ensure_geometry_datasets()
+            assert self._initial_wkt_hash is not None
+            self._append_unique_geometry_record(
+                "<initial>", self._initial_wkt_hash, use_initial=True
+            )
+        if (
+            wkt_hash not in self._extra_geometry_hashes
+            and wkt_hash != self._initial_wkt_hash
+        ):
+            self._extra_geometry_hashes.add(wkt_hash)
+            self._append_unique_geometry_record(wkt, wkt_hash)
+
+        if wkt_hash != self._last_recorded_geometry_hash:
+            self._frame_geometry_buffer.append((frame, wkt_hash))
+            self._last_recorded_geometry_hash = wkt_hash
+
     def _flush(self) -> None:
-        assert self._traj_ds is not None
+        if self._traj_ds is None:
+            return
         if self._buffer:
             arr = np.array(self._buffer, dtype=_trajectory_dtype())
             old = self._traj_ds.shape[0]
@@ -281,6 +347,7 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
             self._append_frame_geometry(self._frame_geometry_buffer)
             self._frame_geometry_buffer.clear()
 
+        self._frames_since_flush = 0
         if self._file is not None:
             self._file.flush()
 
@@ -312,18 +379,23 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
                 chunks=(max(1024, self._commit_every_nth_write),),
             )
 
-    def _append_unique_geometry(self, wkt: str, wkt_hash: int) -> None:
-        self._ensure_geometry_datasets()
+    def _append_unique_geometry_record(
+        self, wkt: str, wkt_hash: int, *, use_initial: bool = False
+    ) -> None:
         assert self._geom_wkt_ds is not None
         assert self._geom_hash_ds is not None
         old = self._geom_wkt_ds.shape[0]
         self._geom_wkt_ds.resize((old + 1,))
         self._geom_hash_ds.resize((old + 1,))
-        self._geom_wkt_ds[old] = wkt
+        # The initial WKT is already preserved as the root `wkt_geometry`
+        # attribute; we only need a hash entry for the registry.
+        if use_initial and self._file is not None:
+            self._geom_wkt_ds[old] = self._file.attrs["wkt_geometry"]
+        else:
+            self._geom_wkt_ds[old] = wkt
         self._geom_hash_ds[old] = wkt_hash
 
     def _append_frame_geometry(self, rows: list[tuple[int, int]]) -> None:
-        self._ensure_geometry_datasets()
         assert self._frame_geom_ds is not None
         arr = np.array(
             rows,
