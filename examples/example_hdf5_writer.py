@@ -45,7 +45,16 @@ def main() -> None:
     )
     exit_id = sim.add_exit_stage(Polygon([(9, 0), (10, 0), (10, 10), (9, 10)]))
     journey_id = sim.add_journey(jps.JourneyDescription([exit_id]))
-    for x, y in [(2, 3), (2, 5), (2, 7), (3, 4), (3, 6), (4, 3), (4, 5), (4, 7)]:
+    for x, y in [
+        (2, 3),
+        (2, 5),
+        (2, 7),
+        (3, 4),
+        (3, 6),
+        (4, 3),
+        (4, 5),
+        (4, 7),
+    ]:
         sim.add_agent(
             jps.CollisionFreeSpeedModelV2AgentParameters(
                 position=(x, y), journey_id=journey_id, stage_id=exit_id
