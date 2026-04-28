@@ -20,9 +20,9 @@ import pathlib
 import sys
 
 import jupedsim as jps
-from shapely import GeometryCollection, Polygon
-import pedpy
 import matplotlib.pyplot as plt
+import pedpy
+from shapely import GeometryCollection, Polygon
 
 
 def main() -> None:
