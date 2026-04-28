@@ -1,5 +1,3 @@
-#! /usr/bin/env python3
-
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 """Example: HDF5 trajectory writer.
@@ -7,7 +5,7 @@
 Runs a short simulation, writes the trajectory to an HDF5 file in a
 layout compatible with the loaders provided by `PedPy
 <https://github.com/PedestrianDynamics/PedPy>`_ for the Pedestrian
-Dynamics Data Archive (PDA) format, then reads the file back with
+Dynamics Data Archive format, then reads the file back with
 PedPy and plots the trajectories on top of the walkable area.
 
 Extra dependencies for this example (beyond JuPedSim itself):
@@ -23,13 +21,20 @@ import sys
 
 import jupedsim as jps
 from shapely import GeometryCollection, Polygon
+import pedpy
+import matplotlib.pyplot as plt
 
 
 def main() -> None:
     if jps.Hdf5TrajectoryWriter is None:
         sys.exit("h5py is not installed. Install with: pip install h5py")
 
-    area = GeometryCollection(Polygon([(0, 0), (10, 0), (10, 10), (0, 10)]))
+    room1 = Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
+    room2 = Polygon([(15, 0), (25, 0), (25, 10), (15, 10)])
+    corridor = Polygon([(10, 4.5), (28, 4.5), (28, 5.5), (10, 5.5)])
+
+    area = GeometryCollection(corridor.union(room1.union(room2)))
+    walkable_area = pedpy.WalkableArea(area.geoms[0])
     out = pathlib.Path("example_traj.h5")
     writer = jps.Hdf5TrajectoryWriter(
         output_file=out,
@@ -43,21 +48,22 @@ def main() -> None:
         trajectory_writer=writer,
         dt=0.01,
     )
-    exit_id = sim.add_exit_stage(Polygon([(9, 0), (10, 0), (10, 10), (9, 10)]))
+    exit_area = Polygon([(27, 4.5), (28, 4.5), (28, 5.5), (27, 5.5)])
+    exit_id = sim.add_exit_stage(exit_area)
     journey_id = sim.add_journey(jps.JourneyDescription([exit_id]))
-    for x, y in [
-        (2, 3),
-        (2, 5),
-        (2, 7),
-        (3, 4),
-        (3, 6),
-        (4, 3),
-        (4, 5),
-        (4, 7),
-    ]:
+    spawning_area = Polygon([(0, 0), (5, 0), (5, 10), (0, 10)])
+    num_agents = 150
+    pos_in_spawning_area = jps.distributions.distribute_by_number(
+        polygon=spawning_area,
+        number_of_agents=num_agents,
+        distance_to_agents=0.4,
+        distance_to_polygon=0.2,
+        seed=1,
+    )
+    for position in pos_in_spawning_area:
         sim.add_agent(
             jps.CollisionFreeSpeedModelV2AgentParameters(
-                position=(x, y), journey_id=journey_id, stage_id=exit_id
+                position=position, journey_id=journey_id, stage_id=exit_id
             )
         )
 
@@ -70,17 +76,6 @@ def main() -> None:
         f"every_nth_frame=4)"
     )
 
-    # --- Read back with PedPy and plot ---------------------------------------
-    try:
-        import matplotlib.pyplot as plt
-        import pedpy
-    except ImportError as e:
-        print(
-            "Skipping plot step: install 'pedpy' and 'matplotlib' "
-            f"to enable it ({e})."
-        )
-        return
-
     traj = pedpy.load_trajectory_from_ped_data_archive_hdf5(trajectory_file=out)
     walkable_area = pedpy.load_walkable_area_from_ped_data_archive_hdf5(
         trajectory_file=out
@@ -92,6 +87,7 @@ def main() -> None:
 
     fig, ax = plt.subplots(figsize=(8, 6))
     pedpy.plot_trajectories(traj=traj, walkable_area=walkable_area, axes=ax)
+    print(walkable_area)
     ax.set_aspect("equal")
     ax.set_title("Hdf5TrajectoryWriter -> pedpy.plot_trajectories")
     png = out.with_suffix(".png")
