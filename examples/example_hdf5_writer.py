@@ -39,7 +39,7 @@ def main() -> None:
     writer = jps.Hdf5TrajectoryWriter(
         output_file=out,
         every_nth_frame=4,
-        compression_level=4,
+        compression_level=1,
     )
 
     sim = jps.Simulation(

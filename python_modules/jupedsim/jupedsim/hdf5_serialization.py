@@ -90,9 +90,11 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
         the on-disk dataset.
     compression_level:
         gzip level for the trajectory dataset, 0 (off) to 9 (max).
-        Levels above 4 give marginal additional savings at large write
-        cost. The HDF5 byte-shuffle filter is enabled whenever
-        compression is on.
+        On trajectory data the bulk of the size reduction is already
+        achieved at level 1 (combined with the byte-shuffle filter,
+        which is enabled whenever compression is on); higher levels
+        give only a few percent extra savings at noticeable extra
+        write cost.
     """
 
     def __init__(
@@ -101,7 +103,7 @@ class Hdf5TrajectoryWriter(TrajectoryWriter):
         output_file: pathlib.Path,
         every_nth_frame: int = 4,
         commit_every_nth_write: int = 100,
-        compression_level: int = 4,
+        compression_level: int = 1,
     ) -> None:
         if every_nth_frame < 1:
             raise TrajectoryWriter.Exception("'every_nth_frame' has to be > 0")

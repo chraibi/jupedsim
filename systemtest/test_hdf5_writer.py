@@ -18,7 +18,7 @@ def square_simulation(tmp_path: pathlib.Path):
     )
     out = tmp_path / "traj.h5"
     writer = jps.Hdf5TrajectoryWriter(
-        output_file=out, every_nth_frame=1, compression_level=4
+        output_file=out, every_nth_frame=1, compression_level=1
     )
     sim = jps.Simulation(
         model=jps.CollisionFreeSpeedModelV2(),
