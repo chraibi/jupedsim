@@ -4,7 +4,8 @@
 import json
 import pathlib
 
-import pytest  # noqa: F401
+import pytest
+from jupedsim import SqliteTrajectoryWriter as jps_sqlite_writer  # noqa: N813
 from jupedsim.internal.scenarios import (
     ScenarioConfig,
     init_scenario,
@@ -110,6 +111,38 @@ def test_load_validates_journey_references_undefined_stage():
         load_scenario(ScenarioConfig(raw))
 
 
+def test_config_requires_model_type():
+    with pytest.raises(ValueError, match="model.type"):
+        ScenarioConfig({"geometry": ROOM_WKT, "model": {}})
+
+
+def test_load_rejects_undefined_journey_in_agent_group():
+    raw = _base_config()
+    raw["agents"][0]["journey"] = "ghost"
+    with pytest.raises(ValueError, match="undefined journey"):
+        load_scenario(ScenarioConfig(raw))
+
+
+def test_load_rejects_undefined_stage_in_agent_group():
+    raw = _base_config()
+    raw["agents"][0]["stage"] = "ghost"
+    with pytest.raises(ValueError, match="undefined stage"):
+        load_scenario(ScenarioConfig(raw))
+
+
+def test_load_rejects_direct_steering_mixed_with_other_stages():
+    raw = _base_config()
+    raw["stages"]["wp"] = {
+        "type": "waypoint",
+        "position": (5.0, 5.0),
+        "distance": 0.4,
+    }
+    raw["stages"]["ds"] = {"type": "direct_steering"}
+    raw["journeys"][0]["stages"] = ["wp", "ds"]
+    with pytest.raises(ValueError, match="direct_steering"):
+        load_scenario(ScenarioConfig(raw))
+
+
 def test_load_rejects_both_distribution_and_positions():
     raw = _base_config()
     raw["agents"][0]["distribution"] = {"polygon": SPAWN_WKT, "number": 5}
@@ -167,6 +200,32 @@ def test_run_with_distribution_group(tmp_path: pathlib.Path):
         sim, max_time=10.0, output_file=tmp_path / "traj.sqlite"
     )
     assert result.iterations > 0
+
+
+def test_run_writes_initial_frame(tmp_path: pathlib.Path):
+    """The trajectory file must include the iteration-0 state."""
+    import sqlite3
+
+    config = ScenarioConfig(_base_config())
+    sim = init_scenario(load_scenario(config))
+    out = tmp_path / "traj.sqlite"
+    run_scenario(sim, max_time=30.0, output_file=out, every_nth_frame=1)
+    with sqlite3.connect(out) as con:
+        first_frame = con.execute(
+            "SELECT MIN(frame) FROM trajectory_data"
+        ).fetchone()[0]
+    assert first_frame == 0
+
+
+def test_run_with_custom_writer_returns_trajectory_path(tmp_path: pathlib.Path):
+    """Even with an injected writer the result exposes its output file."""
+    config = ScenarioConfig(_base_config())
+    sim = init_scenario(load_scenario(config))
+    out = tmp_path / "custom.sqlite"
+    custom_writer = jps_sqlite_writer(output_file=out, every_nth_frame=2)
+    result = run_scenario(sim, max_time=30.0, trajectory_writer=custom_writer)
+    assert result.trajectory_file is not None
+    assert result.trajectory_file.resolve() == out.resolve()
 
 
 def test_parameter_sweep_via_modify_scenario(tmp_path: pathlib.Path):

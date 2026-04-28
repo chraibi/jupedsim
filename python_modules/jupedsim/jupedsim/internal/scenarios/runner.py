@@ -157,7 +157,8 @@ class ScenarioResult:
     agents_remaining
         Agents that did not finish the simulation.
     trajectory_file
-        Path to the SQLite (or HDF5) trajectory file written during the run.
+        Path to the trajectory file written during the run, or ``None``
+        when a custom writer was supplied without a known output path.
     metrics
         Free-form dict for scenario-specific summary statistics.
     """
@@ -166,8 +167,16 @@ class ScenarioResult:
     iterations: int
     elapsed_seconds: float
     agents_remaining: int
-    trajectory_file: pathlib.Path
+    trajectory_file: Optional[pathlib.Path]
     metrics: dict[str, Any] = field(default_factory=dict)
+
+
+def _writer_output_path(writer: Any) -> Optional[pathlib.Path]:
+    for attr in ("_output_file", "output_file", "path", "filename"):
+        value = getattr(writer, attr, None)
+        if value:
+            return pathlib.Path(value)
+    return None
 
 
 def run_scenario(
@@ -177,6 +186,7 @@ def run_scenario(
     max_time: Optional[float] = None,
     trajectory_writer: Optional[Any] = None,
     output_file: Optional[pathlib.Path] = None,
+    every_nth_frame: int = 4,
 ) -> ScenarioResult:
     """Run a simulation until done or a stopping condition is hit.
 
@@ -185,16 +195,19 @@ def run_scenario(
     sim
         Built by :func:`init_scenario`.
     max_iterations, max_time
-        At least one of the two must be supplied (directly or via the
-        scenario's ``simulation.max_time``). The simulation stops when
-        either is reached or all agents have exited, whichever happens
-        first.
+        At least one of the two must be supplied. The simulation stops
+        when either is reached or all agents have exited, whichever
+        happens first.
     trajectory_writer
         Inject a writer (e.g. :class:`jupedsim.Hdf5TrajectoryWriter`).
         If ``None``, a :class:`jupedsim.SqliteTrajectoryWriter` is used.
     output_file
         Where to put the default sqlite writer's output. Defaults to a
         temporary file. Ignored when ``trajectory_writer`` is supplied.
+    every_nth_frame
+        Recording cadence for the default sqlite writer. Ignored when
+        ``trajectory_writer`` is supplied (the injected writer's own
+        cadence applies).
     """
     if max_iterations is None and max_time is None:
         raise ValueError(
@@ -210,20 +223,16 @@ def run_scenario(
             output_file = pathlib.Path(tmp.name)
             tmp.close()
         trajectory_writer = jps.SqliteTrajectoryWriter(
-            output_file=output_file, every_nth_frame=4
+            output_file=output_file, every_nth_frame=every_nth_frame
         )
-        # The simulation does not own the writer; we attach it manually
-        # below after iterating because Simulation already accepts a
-        # writer at construction time. The init path is handled by
-        # init_scenario; here we drive the sim directly.
 
-    # Trajectory writers normally hook into Simulation.iterate via the
-    # constructor argument. Simulation does not currently expose a
-    # post-construction setter, so this branch supports the case where
-    # the caller wants to provide a writer to a sim that was *not*
-    # built with one. We honor the contract by calling the writer
-    # methods ourselves.
+    # We drive the writer manually because the Simulation here was built
+    # without a writer attached. Mirror the lifecycle that
+    # ``Simulation.iterate`` performs internally: ``begin_writing`` plus
+    # an initial ``write_iteration_state`` for iteration 0, then one
+    # ``write_iteration_state`` after every iterate.
     trajectory_writer.begin_writing(sim)
+    trajectory_writer.write_iteration_state(sim)
 
     iterations = 0
     while sim.agent_count() > 0 and iterations < max_iterations:
@@ -234,12 +243,15 @@ def run_scenario(
     if hasattr(trajectory_writer, "close"):
         trajectory_writer.close()
 
+    if output_file is not None:
+        traj_path: Optional[pathlib.Path] = pathlib.Path(output_file)
+    else:
+        traj_path = _writer_output_path(trajectory_writer)
+
     return ScenarioResult(
         success=sim.agent_count() == 0,
         iterations=iterations,
         elapsed_seconds=iterations * dt,
         agents_remaining=sim.agent_count(),
-        trajectory_file=pathlib.Path(output_file)
-        if output_file
-        else pathlib.Path(""),
+        trajectory_file=traj_path,
     )

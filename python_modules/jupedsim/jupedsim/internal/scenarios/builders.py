@@ -57,10 +57,15 @@ def _gcfm(p: Mapping[str, Any]) -> Any:
 
 
 def _social_force(p: Mapping[str, Any]) -> Any:
-    return jps.SocialForceModel(
-        body_force=p.get("body_force", 2000),
-        friction=p.get("friction", 0.08),
-    )
+    # Defer to the model's native defaults; only forward keys that the
+    # caller actually set, so omitting fields keeps the same behavior as
+    # constructing ``jps.SocialForceModel()`` directly.
+    kwargs: dict[str, Any] = {}
+    if "body_force" in p:
+        kwargs["body_force"] = p["body_force"]
+    if "friction" in p:
+        kwargs["friction"] = p["friction"]
+    return jps.SocialForceModel(**kwargs)
 
 
 _MODEL_BUILDERS: dict[str, ModelBuilder] = {
@@ -138,7 +143,7 @@ _AGENT_PARAMS_BUILDERS: dict[str, AgentParamsBuilder] = {
                 position=position,
                 journey_id=journey_id,
                 stage_id=stage_id,
-                desiredSpeed=v0,
+                desired_speed=v0,
                 radius=radius,
             )
         )

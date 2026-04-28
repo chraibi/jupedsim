@@ -42,6 +42,20 @@ class ScenarioConfig:
                     f"ScenarioConfig is missing required key '{key}'. "
                     f"Required keys: {sorted(_REQUIRED_TOP_LEVEL_KEYS)}."
                 )
+        model = data["model"]
+        if not isinstance(model, Mapping):
+            raise ValueError(
+                "ScenarioConfig key 'model' must be a mapping containing "
+                "required key 'type'."
+            )
+        if "type" not in model:
+            raise ValueError(
+                "ScenarioConfig is missing required key 'model.type'."
+            )
+        if not isinstance(model["type"], str):
+            raise ValueError(
+                "ScenarioConfig key 'model.type' must be a string."
+            )
         self._raw: dict[str, Any] = data
 
     # ----- IO ----------------------------------------------------------------

@@ -77,12 +77,30 @@ def load_scenario(config: ScenarioConfig) -> LoadedScenario:
             stage_geoms[name] = _parse_wkt(spec["polygon"], f"stage '{name}'")
 
     _validate_stage_refs(config.journeys, list(config.stages.keys()))
+    _validate_direct_steering_journeys(config.journeys, config.stages)
+
+    journey_names = {
+        j.get("name", f"journey_{i}") for i, j in enumerate(config.journeys)
+    }
+    stage_names = set(config.stages.keys())
 
     distribution_polygons: dict[int, BaseGeometry] = {}
     for idx, group in enumerate(config.agents):
         if "journey" not in group or "stage" not in group:
             raise ValueError(
                 f"Agent group #{idx} is missing 'journey' or 'stage'"
+            )
+        if group["journey"] not in journey_names:
+            raise ValueError(
+                f"Agent group #{idx} references undefined journey "
+                f"'{group['journey']}'. Defined journeys: "
+                f"{sorted(journey_names)}."
+            )
+        if group["stage"] not in stage_names:
+            raise ValueError(
+                f"Agent group #{idx} references undefined stage "
+                f"'{group['stage']}'. Defined stages: "
+                f"{sorted(stage_names)}."
             )
         if "distribution" in group and "positions" in group:
             raise ValueError(
@@ -107,3 +125,22 @@ def load_scenario(config: ScenarioConfig) -> LoadedScenario:
         stage_geometries=stage_geoms,
         distribution_polygons=distribution_polygons,
     )
+
+
+def _validate_direct_steering_journeys(
+    journeys: list[Mapping[str, Any]],
+    stages: Mapping[str, Mapping[str, Any]],
+) -> None:
+    """``direct_steering`` stages may only appear alone in a journey."""
+    for journey in journeys:
+        names = list(journey.get("stages", []))
+        is_direct = [
+            stages.get(n, {}).get("type") == "direct_steering" for n in names
+        ]
+        if any(is_direct) and len(names) > 1:
+            raise ValueError(
+                f"Journey '{journey.get('name', '<unnamed>')}' mixes a "
+                f"'direct_steering' stage with other stages; a "
+                f"direct_steering stage must be the only stage in its "
+                f"journey."
+            )
