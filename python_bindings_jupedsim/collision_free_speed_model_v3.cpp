@@ -53,7 +53,7 @@ void init_collision_free_speed_model_v3(py::module_& m)
             py::arg("radius"),
             py::arg("range_x_scale") = 20.0,
             py::arg("range_y_scale") = 8.0,
-            py::arg("theta_max_upper_bound") = 1.0,
+            py::arg("theta_max_upper_bound") = 1.57,
             py::arg("agent_buffer") = 0.0)
         .def_readwrite(
             "strength_neighbor_repulsion",
