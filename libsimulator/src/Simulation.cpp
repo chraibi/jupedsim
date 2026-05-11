@@ -51,6 +51,7 @@ Simulation::Simulation(
     }
     _geometry = std::get<0>(tup->second).get();
     _routingEngine = std::get<1>(tup->second).get();
+    _primaryLevel = _geometry->Id();
 }
 const SimulationClock& Simulation::Clock() const
 {
@@ -221,6 +222,9 @@ BaseStage::ID Simulation::AddStage(const StageDescription stageDescription)
 GenericAgent::ID Simulation::AddAgent(GenericAgent agent)
 {
     JPS_SCOPED_TIMER_AND_TRACE(_timer, "Add Agent", Detailed);
+    if(agent.currentLevel == CollisionGeometry::ID::Invalid) {
+        agent.currentLevel = _primaryLevel;
+    }
     if(!_geometry->InsideGeometry(agent.pos)) {
         throw SimulationError("Agent {} not inside walkable area", agent.pos);
     }
@@ -403,6 +407,10 @@ void Simulation::SwitchGeometry(std::unique_ptr<CollisionGeometry>&& geometry)
         }
         _geometry = std::get<0>(tup->second).get();
         _routingEngine = std::get<1>(tup->second).get();
+    }
+    _primaryLevel = _geometry->Id();
+    for(auto& agent : _agents) {
+        agent.currentLevel = _primaryLevel;
     }
 }
 

@@ -45,6 +45,10 @@ class Simulation
         geometries{};
     RoutingEngine* _routingEngine;
     CollisionGeometry* _geometry;
+    // The level new agents are assigned to when they enter the simulation
+    // without an explicit level. Today this is always the single geometry;
+    // it gives multi-level work a stable hook without changing call sites.
+    CollisionGeometry::ID _primaryLevel{CollisionGeometry::ID::Invalid};
     std::vector<GenericAgent> _agents;
     std::vector<GenericAgent::ID> _removedAgentsInLastIteration;
     std::unordered_map<Journey::ID, std::unique_ptr<Journey>> _journeys;
