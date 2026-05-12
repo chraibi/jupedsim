@@ -3,11 +3,17 @@
 
 void BuildingTopology::AddLanding(
     CollisionGeometry::ID from,
-    Polygon polyFrom,
+    const std::vector<Point>& polyFromPoints,
     CollisionGeometry::ID to,
-    Polygon polyTo)
+    const std::vector<Point>& polyToPoints)
 {
-    _landings.push_back({from, to, std::move(polyFrom), std::move(polyTo)});
+    _landings.push_back(
+        {from,
+         to,
+         Polygon{polyFromPoints},
+         Polygon{polyToPoints},
+         polyFromPoints,
+         polyToPoints});
 }
 
 const BuildingTopology::Landing*

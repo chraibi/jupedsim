@@ -40,8 +40,9 @@ def main():
     )
 
     floor1_id = sim.primary_level
-    floor2_id = sim.add_level(FLOOR2)
-    stair_id = sim.add_level(STAIR)
+    # Elevations are world-z used only by 3D viewers (e.g. BlenderJPS).
+    floor2_id = sim.add_level(FLOOR2, elevation=3.0)
+    stair_id = sim.add_level(STAIR, elevation=1.5)
 
     sim.add_landing(
         from_level=floor1_id,

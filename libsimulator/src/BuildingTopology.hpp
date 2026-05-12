@@ -20,13 +20,17 @@ public:
         CollisionGeometry::ID to;
         Polygon polyFrom;
         Polygon polyTo;
+        // Raw vertex lists, kept alongside the Polygons for callers that
+        // need to serialize landings (e.g. the SQLite writer for 3D viz).
+        std::vector<Point> polyFromPoints;
+        std::vector<Point> polyToPoints;
     };
 
     void AddLanding(
         CollisionGeometry::ID from,
-        Polygon polyFrom,
+        const std::vector<Point>& polyFromPoints,
         CollisionGeometry::ID to,
-        Polygon polyTo);
+        const std::vector<Point>& polyToPoints);
 
     // First landing on `level` whose polyFrom contains `pos`, or nullptr.
     const Landing* FindLanding(CollisionGeometry::ID level, Point pos) const;

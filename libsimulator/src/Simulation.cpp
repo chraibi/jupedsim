@@ -53,9 +53,11 @@ Simulation::Simulation(
     _routingEngine = std::get<1>(tup->second).get();
     _primaryLevel = _geometry->Id();
     _neighborhoodSearches.try_emplace(_primaryLevel, 2.2);
+    _levelElevations[_primaryLevel] = 0.0;
 }
 
-CollisionGeometry::ID Simulation::AddLevel(std::unique_ptr<CollisionGeometry>&& geometry)
+CollisionGeometry::ID
+Simulation::AddLevel(std::unique_ptr<CollisionGeometry>&& geometry, double elevation)
 {
     JPS_TRACE_FUNC;
     const auto id = geometry->Id();
@@ -68,7 +70,39 @@ CollisionGeometry::ID Simulation::AddLevel(std::unique_ptr<CollisionGeometry>&& 
         throw SimulationError("Level already registered");
     }
     _neighborhoodSearches.try_emplace(id, 2.2);
+    _levelElevations[id] = elevation;
     return id;
+}
+
+std::vector<CollisionGeometry::ID> Simulation::LevelIds() const
+{
+    std::vector<CollisionGeometry::ID> ids;
+    ids.reserve(geometries.size());
+    ids.push_back(_primaryLevel);
+    for(const auto& [id, _] : geometries) {
+        if(id != _primaryLevel) {
+            ids.push_back(id);
+        }
+    }
+    return ids;
+}
+
+double Simulation::LevelElevation(CollisionGeometry::ID id) const
+{
+    const auto it = _levelElevations.find(id);
+    if(it == std::end(_levelElevations)) {
+        throw SimulationError("Unknown level id: {}", id);
+    }
+    return it->second;
+}
+
+const CollisionGeometry& Simulation::LevelGeometry(CollisionGeometry::ID id) const
+{
+    const auto it = geometries.find(id);
+    if(it == std::end(geometries)) {
+        throw SimulationError("Unknown level id: {}", id);
+    }
+    return *std::get<0>(it->second);
 }
 
 void Simulation::AddLanding(
@@ -84,7 +118,7 @@ void Simulation::AddLanding(
     if(geometries.find(to) == std::end(geometries)) {
         throw SimulationError("Unknown level id (to): {}", to);
     }
-    _topology.AddLanding(from, Polygon{polyFrom}, to, Polygon{polyTo});
+    _topology.AddLanding(from, polyFrom, to, polyTo);
 }
 const SimulationClock& Simulation::Clock() const
 {

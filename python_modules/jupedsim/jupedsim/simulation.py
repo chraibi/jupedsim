@@ -546,15 +546,35 @@ class Simulation:
         """Id of the primary level (the geometry passed to the constructor)."""
         return self._obj.primary_level()
 
-    def add_level(self, geometry) -> int:
+    def add_level(self, geometry, elevation: float = 0.0) -> int:
         """Register an additional level (a floor or stair) and return its id.
 
         The first geometry passed to the Simulation constructor is the
         primary level. Use this method to add further floors or stair
         geometries that agents can switch onto via landings.
+
+        ``elevation`` is the world-z at which this level is rendered (used
+        by 3D viewers such as BlenderJPS). It has no effect on the 2D
+        simulation itself.
         """
         internal_geometry = build_geometry(geometry)
-        return self._obj.add_level(internal_geometry._obj)
+        return self._obj.add_level(internal_geometry._obj, elevation=elevation)
+
+    def level_ids(self) -> list[int]:
+        """Ids of all registered levels (primary first)."""
+        return self._obj.level_ids()
+
+    def level_elevation(self, level_id: int) -> float:
+        """World-z of a level (for 3D viz)."""
+        return self._obj.level_elevation(level_id)
+
+    def level_geometry(self, level_id: int) -> Geometry:
+        """Geometry of a level by id."""
+        return Geometry(self._obj.level_geometry(level_id))
+
+    def landings(self) -> list[tuple[int, int, list[tuple[float, float]], list[tuple[float, float]]]]:
+        """Registered landings as (from_level, to_level, polygon_from, polygon_to)."""
+        return self._obj.landings()
 
     def add_landing(
         self,

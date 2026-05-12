@@ -158,10 +158,52 @@ void init_simulation(py::module_& m)
         })
         .def(
             "add_level",
-            [](Simulation& sim, CollisionGeometry& geometry) {
-                return sim.AddLevel(std::make_unique<CollisionGeometry>(geometry)).getID();
+            [](Simulation& sim, CollisionGeometry& geometry, double elevation) {
+                return sim.AddLevel(std::make_unique<CollisionGeometry>(geometry), elevation)
+                    .getID();
             },
-            py::arg("geometry"))
+            py::arg("geometry"),
+            py::arg("elevation") = 0.0)
+        .def(
+            "level_ids",
+            [](const Simulation& sim) {
+                std::vector<uint64_t> ids;
+                for(const auto id : sim.LevelIds()) {
+                    ids.push_back(id.getID());
+                }
+                return ids;
+            })
+        .def(
+            "level_elevation",
+            [](const Simulation& sim, uint64_t id) { return sim.LevelElevation(id); },
+            py::arg("level_id"))
+        .def(
+            "level_geometry",
+            [](const Simulation& sim, uint64_t id) -> CollisionGeometry {
+                return sim.LevelGeometry(id);
+            },
+            py::arg("level_id"))
+        .def(
+            "landings",
+            [](const Simulation& sim) {
+                std::vector<std::tuple<
+                    uint64_t,
+                    uint64_t,
+                    std::vector<std::tuple<double, double>>,
+                    std::vector<std::tuple<double, double>>>>
+                    out;
+                for(const auto& l : sim.Topology().Landings()) {
+                    std::vector<std::tuple<double, double>> pf, pt;
+                    for(const auto& p : l.polyFromPoints) {
+                        pf.emplace_back(p.x, p.y);
+                    }
+                    for(const auto& p : l.polyToPoints) {
+                        pt.emplace_back(p.x, p.y);
+                    }
+                    out.emplace_back(l.from.getID(), l.to.getID(), std::move(pf), std::move(pt));
+                }
+                return out;
+            })
         .def(
             "add_landing",
             [](Simulation& sim,
