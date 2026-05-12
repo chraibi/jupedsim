@@ -13,11 +13,15 @@ public:
     TacticalDecisionSystem(TacticalDecisionSystem&& other) = delete;
     TacticalDecisionSystem& operator=(TacticalDecisionSystem&& other) = delete;
 
-    void Run(RoutingEngine& routingEngine, auto&& agents) const
+    // `engineFor` resolves an agent's currentLevel to the RoutingEngine for
+    // that level. Single-level callers pass a closure that returns the same
+    // engine regardless of input.
+    template <typename Agents, typename EngineFor>
+    void Run(EngineFor&& engineFor, Agents&& agents) const
     {
         for(auto& agent : agents) {
-            const auto dest = agent.target;
-            agent.destination = routingEngine.ComputeWaypoint(agent.pos, dest);
+            auto& routingEngine = engineFor(agent.currentLevel);
+            agent.destination = routingEngine.ComputeWaypoint(agent.pos, agent.target);
         }
     }
 };

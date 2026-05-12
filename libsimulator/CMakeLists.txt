@@ -26,6 +26,8 @@ add_library(simulator STATIC
     src/AnticipationVelocityModelUpdate.hpp  
     src/CollisionGeometry.cpp
     src/CollisionGeometry.hpp
+    src/BuildingTopology.cpp
+    src/BuildingTopology.hpp
     src/Ellipse.cpp
     src/Ellipse.hpp
     src/GeneralizedCentrifugalForceModel.cpp

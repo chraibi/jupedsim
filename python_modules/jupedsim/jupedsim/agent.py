@@ -70,6 +70,15 @@ class Agent:
         return self._obj.position
 
     @property
+    def level(self) -> int:
+        """Id of the level (geometry) the agent currently lives on."""
+        return self._obj.level
+
+    @level.setter
+    def level(self, level: int) -> None:
+        self._obj.level = level
+
+    @property
     def orientation(self) -> tuple[float, float]:
         """Orientation of the agent."""
         return self._obj.orientation

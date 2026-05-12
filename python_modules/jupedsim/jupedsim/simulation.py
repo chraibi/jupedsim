@@ -541,6 +541,43 @@ class Simulation:
         """
         return Geometry(self._obj.get_geometry())
 
+    @property
+    def primary_level(self) -> int:
+        """Id of the primary level (the geometry passed to the constructor)."""
+        return self._obj.primary_level()
+
+    def add_level(self, geometry) -> int:
+        """Register an additional level (a floor or stair) and return its id.
+
+        The first geometry passed to the Simulation constructor is the
+        primary level. Use this method to add further floors or stair
+        geometries that agents can switch onto via landings.
+        """
+        internal_geometry = build_geometry(geometry)
+        return self._obj.add_level(internal_geometry._obj)
+
+    def add_landing(
+        self,
+        *,
+        from_level: int,
+        polygon_from: list[tuple[float, float]],
+        to_level: int,
+        polygon_to: list[tuple[float, float]],
+    ) -> None:
+        """Connect two levels via a landing portal.
+
+        An agent on ``from_level`` whose position lies inside
+        ``polygon_from`` is transferred to ``to_level``; its (x, y) is
+        preserved (the two landing polygons are expected to overlap in
+        plan).
+        """
+        self._obj.add_landing(
+            from_level=from_level,
+            polygon_from=polygon_from,
+            to_level=to_level,
+            polygon_to=polygon_to,
+        )
+
     def switch_geometry(self, geometry: Geometry) -> None:
         """Switch the geometry of the simulation.
 

@@ -52,6 +52,39 @@ Simulation::Simulation(
     _geometry = std::get<0>(tup->second).get();
     _routingEngine = std::get<1>(tup->second).get();
     _primaryLevel = _geometry->Id();
+    _neighborhoodSearches.try_emplace(_primaryLevel, 2.2);
+}
+
+CollisionGeometry::ID Simulation::AddLevel(std::unique_ptr<CollisionGeometry>&& geometry)
+{
+    JPS_TRACE_FUNC;
+    const auto id = geometry->Id();
+    const auto p = geometry->Polygon();
+    const auto& [_, inserted] = geometries.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(id),
+        std::forward_as_tuple(std::move(geometry), std::make_unique<RoutingEngine>(p)));
+    if(!inserted) {
+        throw SimulationError("Level already registered");
+    }
+    _neighborhoodSearches.try_emplace(id, 2.2);
+    return id;
+}
+
+void Simulation::AddLanding(
+    CollisionGeometry::ID from,
+    const std::vector<Point>& polyFrom,
+    CollisionGeometry::ID to,
+    const std::vector<Point>& polyTo)
+{
+    JPS_TRACE_FUNC;
+    if(geometries.find(from) == std::end(geometries)) {
+        throw SimulationError("Unknown level id (from): {}", from);
+    }
+    if(geometries.find(to) == std::end(geometries)) {
+        throw SimulationError("Unknown level id (to): {}", to);
+    }
+    _topology.AddLanding(from, Polygon{polyFrom}, to, Polygon{polyTo});
 }
 const SimulationClock& Simulation::Clock() const
 {
@@ -78,12 +111,23 @@ void Simulation::Iterate()
 
     {
         JPS_SCOPED_TIMER_AND_TRACE(_timer, "Neighborhood Search", Detailed);
-        _neighborhoodSearch.Update(_agents);
+        // Partition agents by currentLevel into the per-level grids.
+        std::unordered_map<CollisionGeometry::ID, std::vector<GenericAgent>> bucketed;
+        for(const auto& a : _agents) {
+            bucketed[a.currentLevel].push_back(a);
+        }
+        for(auto& [id, ns] : _neighborhoodSearches) {
+            ns.Update(bucketed[id]);
+        }
     }
 
     {
         JPS_SCOPED_TIMER_AND_TRACE(_timer, "Stage System", Detailed);
-        _stageSystem.Run(_stageManager, _neighborhoodSearch, *_geometry);
+        // Stages are not yet level-aware; queue/waiting-set updates use the
+        // primary level's neighborhood + geometry. Multi-level stage
+        // ownership lands with the per-stage `level` field.
+        _stageSystem.Run(
+            _stageManager, _neighborhoodSearches.at(_primaryLevel), *_geometry);
     }
 
     {
@@ -93,13 +137,39 @@ void Simulation::Iterate()
 
     {
         JPS_SCOPED_TIMER_AND_TRACE(_timer, "Tactical Decision System", General);
-        _tacticalDecisionSystem.Run(*_routingEngine, _agents);
+        _tacticalDecisionSystem.Run(
+            [this](CollisionGeometry::ID id) -> RoutingEngine& {
+                return *std::get<1>(geometries.at(id));
+            },
+            _agents);
     }
 
     {
         JPS_SCOPED_TIMER_AND_TRACE(_timer, "Operational Decision System", General);
         _operationalDecisionSystem.Run(
-            _clock.dT(), _clock.ElapsedTime(), _neighborhoodSearch, *_geometry, _agents);
+            _clock.dT(),
+            _clock.ElapsedTime(),
+            [this](CollisionGeometry::ID id) -> const CollisionGeometry& {
+                return *std::get<0>(geometries.at(id));
+            },
+            [this](CollisionGeometry::ID id) -> const NeighborhoodSearch<GenericAgent>& {
+                return _neighborhoodSearches.at(id);
+            },
+            _agents);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Level Switch", Detailed);
+        // Level crossing: an agent in a landing polygon on its current
+        // level is transferred to the connected level. (x,y) is preserved;
+        // landings overlap in plan. Re-bucketing into the destination grid
+        // happens at the start of the next iteration.
+        for(auto& agent : _agents) {
+            const auto* landing = _topology.FindLanding(agent.currentLevel, agent.pos);
+            if(landing != nullptr) {
+                agent.currentLevel = landing->to;
+            }
+        }
     }
     _clock.Advance();
 }
@@ -225,7 +295,12 @@ GenericAgent::ID Simulation::AddAgent(GenericAgent agent)
     if(agent.currentLevel == CollisionGeometry::ID::Invalid) {
         agent.currentLevel = _primaryLevel;
     }
-    if(!_geometry->InsideGeometry(agent.pos)) {
+    const auto levelIter = geometries.find(agent.currentLevel);
+    if(levelIter == std::end(geometries)) {
+        throw SimulationError("Agent assigned to unknown level: {}", agent.currentLevel);
+    }
+    const auto& levelGeometry = *std::get<0>(levelIter->second);
+    if(!levelGeometry.InsideGeometry(agent.pos)) {
         throw SimulationError("Agent {} not inside walkable area", agent.pos);
     }
     if(_journeys.count(agent.journeyId) == 0) {
@@ -243,15 +318,20 @@ GenericAgent::ID Simulation::AddAgent(GenericAgent agent)
         }
 
     agent.orientation = agent.orientation.Normalized();
-    _operationalDecisionSystem.ValidateAgent(agent, _neighborhoodSearch, *_geometry);
+    auto& ns = _neighborhoodSearches.at(agent.currentLevel);
+    _operationalDecisionSystem.ValidateAgent(agent, ns, levelGeometry);
 
     _stageManager.HandleNewAgent(agent.stageId);
     _agents.emplace_back(std::move(agent));
-    _neighborhoodSearch.AddAgent(_agents.back());
+    ns.AddAgent(_agents.back());
 
     auto v = IteratorPair(std::prev(std::end(_agents)), std::end(_agents));
     _stategicalDecisionSystem.Run(_journeys, v, _stageManager);
-    _tacticalDecisionSystem.Run(*_routingEngine, v);
+    _tacticalDecisionSystem.Run(
+        [this](CollisionGeometry::ID id) -> RoutingEngine& {
+            return *std::get<1>(geometries.at(id));
+        },
+        v);
     return _agents.back().id.getID();
 }
 
@@ -342,15 +422,16 @@ void Simulation::SwitchAgentJourney(
 std::vector<GenericAgent::ID> Simulation::AgentsInRange(Point p, double distance)
 {
     JPS_SCOPED_TIMER_AND_TRACE(_timer, "Agents in Range", Debug);
-    const auto neighbors = _neighborhoodSearch.GetNeighboringAgents(p, distance);
-
+    // Spatial query unions across levels; the caller filters by level if it
+    // cares (AgentsInRange has no level argument today).
     std::vector<GenericAgent::ID> neighborIds{};
-    neighborIds.reserve(neighbors.size());
-    std::transform(
-        std::begin(neighbors),
-        std::end(neighbors),
-        std::back_inserter(neighborIds),
-        [](const auto& agent) { return agent.id; });
+    for(const auto& [_, ns] : _neighborhoodSearches) {
+        const auto neighbors = ns.GetNeighboringAgents(p, distance);
+        neighborIds.reserve(neighborIds.size() + neighbors.size());
+        for(const auto& a : neighbors) {
+            neighborIds.push_back(a.id);
+        }
+    }
     return neighborIds;
 }
 
@@ -363,15 +444,15 @@ std::vector<GenericAgent::ID> Simulation::AgentsInPolygon(const std::vector<Poin
     }
     const auto [p, dist] = poly.ContainingCircle();
 
-    const auto candidates = _neighborhoodSearch.GetNeighboringAgents(p, dist);
     std::vector<GenericAgent::ID> result{};
-    result.reserve(candidates.size());
-    std::for_each(
-        std::begin(candidates), std::end(candidates), [&result, &poly](const auto& agent) {
+    for(const auto& [_, ns] : _neighborhoodSearches) {
+        const auto candidates = ns.GetNeighboringAgents(p, dist);
+        for(const auto& agent : candidates) {
             if(poly.IsInside(agent.pos)) {
                 result.push_back(agent.id);
             }
-        });
+        }
+    }
     return result;
 }
 

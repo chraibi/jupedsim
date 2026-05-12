@@ -33,11 +33,16 @@ public:
 
     OperationalModelType ModelType() const { return _model->Type(); }
 
+    // `geoFor` and `nsFor` resolve an agent's currentLevel to the
+    // CollisionGeometry and NeighborhoodSearch for that level. Single-level
+    // callers pass closures that ignore the input and always return the one
+    // geometry/grid.
+    template <typename GeoFor, typename NsFor>
     void
     Run(double dT,
         double /*t_in_sec*/,
-        const NeighborhoodSearch<GenericAgent>& neighborhoodSearch,
-        const CollisionGeometry& geometry,
+        GeoFor&& geoFor,
+        NsFor&& nsFor,
         std::vector<GenericAgent>& agents) const
     {
         std::vector<std::optional<OperationalModelUpdate>> updates{};
@@ -47,8 +52,9 @@ public:
             std::begin(agents),
             std::end(agents),
             std::back_inserter(updates),
-            [this, &dT, &geometry, &neighborhoodSearch](const auto& agent) {
-                return _model->ComputeNewPosition(dT, agent, geometry, neighborhoodSearch);
+            [this, &dT, &geoFor, &nsFor](const auto& agent) {
+                return _model->ComputeNewPosition(
+                    dT, agent, geoFor(agent.currentLevel), nsFor(agent.currentLevel));
             });
 
         std::for_each(

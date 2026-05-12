@@ -141,6 +141,9 @@ void init_simulation(py::module_& m)
             [](Simulation& sim, size_t level) { sim.SetTimerLogLevel(level); })
         .def("get_geometry", [](Simulation& sim) { return sim.Geo(); })
         .def(
+            "primary_level",
+            [](const Simulation& sim) { return sim.PrimaryLevel().getID(); })
+        .def(
             "push_timer",
             [](Simulation& sim, const std::string& name, size_t probe_log_level) {
                 sim.PushTimer(name, probe_log_level);
@@ -152,5 +155,25 @@ void init_simulation(py::module_& m)
         .def("get_durations", [](Simulation& sim) { return sim.GetTimerDurations(); })
         .def("switch_geometry", [](Simulation& sim, CollisionGeometry& geometry) {
             sim.SwitchGeometry(std::make_unique<CollisionGeometry>(geometry));
-        });
+        })
+        .def(
+            "add_level",
+            [](Simulation& sim, CollisionGeometry& geometry) {
+                return sim.AddLevel(std::make_unique<CollisionGeometry>(geometry)).getID();
+            },
+            py::arg("geometry"))
+        .def(
+            "add_landing",
+            [](Simulation& sim,
+               uint64_t fromLevel,
+               const std::vector<std::tuple<double, double>>& polyFrom,
+               uint64_t toLevel,
+               const std::vector<std::tuple<double, double>>& polyTo) {
+                sim.AddLanding(fromLevel, intoPoints(polyFrom), toLevel, intoPoints(polyTo));
+            },
+            py::kw_only(),
+            py::arg("from_level"),
+            py::arg("polygon_from"),
+            py::arg("to_level"),
+            py::arg("polygon_to"));
 }

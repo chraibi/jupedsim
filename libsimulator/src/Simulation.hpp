@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AgentRemovalSystem.hpp"
+#include "BuildingTopology.hpp"
 #include "CollisionGeometry.hpp"
 #include "GenericAgent.hpp"
 #include "Journey.hpp"
@@ -10,6 +11,7 @@
 #include "OperationalModel.hpp"
 #include "OperationalModelType.hpp"
 #include "Point.hpp"
+#include "Polygon.hpp"
 #include "RoutingEngine.hpp"
 #include "SimulationClock.hpp"
 #include "Stage.hpp"
@@ -38,7 +40,11 @@ class Simulation
     AgentRemovalSystem<GenericAgent> _agentRemovalSystem{};
     StageManager _stageManager{};
     StageSystem _stageSystem{};
-    NeighborhoodSearch<GenericAgent> _neighborhoodSearch{2.2};
+    // One neighborhood grid per level. Agents are partitioned by
+    // currentLevel each iteration; cross-level neighbor interactions are
+    // intentionally suppressed (floors share an (x,y) footprint).
+    std::unordered_map<CollisionGeometry::ID, NeighborhoodSearch<GenericAgent>>
+        _neighborhoodSearches{};
     std::unordered_map<
         CollisionGeometry::ID,
         std::tuple<std::unique_ptr<CollisionGeometry>, std::unique_ptr<RoutingEngine>>>
@@ -46,9 +52,10 @@ class Simulation
     RoutingEngine* _routingEngine;
     CollisionGeometry* _geometry;
     // The level new agents are assigned to when they enter the simulation
-    // without an explicit level. Today this is always the single geometry;
-    // it gives multi-level work a stable hook without changing call sites.
+    // without an explicit level. Also the level the legacy SwitchGeometry
+    // path operates on.
     CollisionGeometry::ID _primaryLevel{CollisionGeometry::ID::Invalid};
+    BuildingTopology _topology{};
     std::vector<GenericAgent> _agents;
     std::vector<GenericAgent::ID> _removedAgentsInLastIteration;
     std::unordered_map<Journey::ID, std::unique_ptr<Journey>> _journeys;
@@ -89,7 +96,20 @@ public:
     OperationalModelType ModelType() const;
     StageProxy Stage(BaseStage::ID stageId);
     CollisionGeometry Geo() const;
+    CollisionGeometry::ID PrimaryLevel() const { return _primaryLevel; }
     void SwitchGeometry(std::unique_ptr<CollisionGeometry>&& geometry);
+    // Register an additional level (a floor or a stair). Returns its id.
+    // The first geometry passed to the Simulation ctor is the primary level;
+    // subsequent ones are added via this method.
+    CollisionGeometry::ID AddLevel(std::unique_ptr<CollisionGeometry>&& geometry);
+    // Connect two levels via a landing portal. An agent on `from` whose
+    // position lies inside `polyFrom` will be transferred to `to` (its
+    // (x,y) is preserved; the landings are expected to overlap in plan).
+    void AddLanding(
+        CollisionGeometry::ID from,
+        const std::vector<Point>& polyFrom,
+        CollisionGeometry::ID to,
+        const std::vector<Point>& polyTo);
     void PushTimer(const std::string_view name, size_t probe_log_level = 0);
     void PopTimer(const std::string_view name);
     void SetTimerLogLevel(int level) { _timer.setLogLevel(level); };

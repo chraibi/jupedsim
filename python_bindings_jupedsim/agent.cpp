@@ -51,6 +51,10 @@ void init_agent(py::module_& m)
             [](GenericAgent& agent, std::tuple<double, double> target) {
                 agent.target = intoPoint(target);
             })
+        .def_property(
+            "level",
+            [](const GenericAgent& agent) { return agent.currentLevel.getID(); },
+            [](GenericAgent& agent, uint64_t level) { agent.currentLevel = level; })
         .def_property_readonly(
             "model",
             [](GenericAgent& agent) -> auto& { return agent.model; },
