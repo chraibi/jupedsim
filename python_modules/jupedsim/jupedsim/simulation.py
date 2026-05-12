@@ -8,7 +8,7 @@ import jupedsim.native as py_jps
 from jupedsim.agent import Agent
 from jupedsim.geometry import Geometry
 from jupedsim.geometry_utils import build_geometry
-from jupedsim.internal.tracing import Trace
+from jupedsim.internal.tracing import Timer
 from jupedsim.journey import JourneyDescription
 from jupedsim.models.anticipation_velocity_model import (
     AnticipationVelocityModel,
@@ -69,6 +69,7 @@ class Simulation:
         ),
         dt: float = 0.01,
         trajectory_writer: TrajectoryWriter | None = None,
+        timer_log_level: int = 1,
         **kwargs: Any,
     ) -> None:
         """Creates a Simulation.
@@ -142,6 +143,7 @@ class Simulation:
         self._obj = py_jps.Simulation(
             model=py_jps_model, geometry=build_geometry(geometry)._obj, dt=dt
         )
+        self._timer = Timer(self._obj, timer_log_level=timer_log_level)
 
     def add_waypoint_stage(
         self, position: tuple[float, float], distance
@@ -531,9 +533,6 @@ class Simulation:
     def set_tracing(self, status: bool) -> None:
         self._obj.set_tracing(status)
 
-    def get_last_trace(self) -> Trace:
-        return self._obj.get_last_trace()
-
     def get_geometry(self) -> Geometry:
         """Current geometry of the simulation.
 
@@ -541,6 +540,63 @@ class Simulation:
             The geometry of the simulation.
         """
         return Geometry(self._obj.get_geometry())
+
+    @property
+    def primary_level(self) -> int:
+        """Id of the primary level (the geometry passed to the constructor)."""
+        return self._obj.primary_level()
+
+    def add_level(self, geometry, elevation: float = 0.0) -> int:
+        """Register an additional level (a floor or stair) and return its id.
+
+        The first geometry passed to the Simulation constructor is the
+        primary level. Use this method to add further floors or stair
+        geometries that agents can switch onto via landings.
+
+        ``elevation`` is the world-z at which this level is rendered (used
+        by 3D viewers such as BlenderJPS). It has no effect on the 2D
+        simulation itself.
+        """
+        internal_geometry = build_geometry(geometry)
+        return self._obj.add_level(internal_geometry._obj, elevation=elevation)
+
+    def level_ids(self) -> list[int]:
+        """Ids of all registered levels (primary first)."""
+        return self._obj.level_ids()
+
+    def level_elevation(self, level_id: int) -> float:
+        """World-z of a level (for 3D viz)."""
+        return self._obj.level_elevation(level_id)
+
+    def level_geometry(self, level_id: int) -> Geometry:
+        """Geometry of a level by id."""
+        return Geometry(self._obj.level_geometry(level_id))
+
+    def landings(self) -> list[tuple[int, int, list[tuple[float, float]], list[tuple[float, float]]]]:
+        """Registered landings as (from_level, to_level, polygon_from, polygon_to)."""
+        return self._obj.landings()
+
+    def add_landing(
+        self,
+        *,
+        from_level: int,
+        polygon_from: list[tuple[float, float]],
+        to_level: int,
+        polygon_to: list[tuple[float, float]],
+    ) -> None:
+        """Connect two levels via a landing portal.
+
+        An agent on ``from_level`` whose position lies inside
+        ``polygon_from`` is transferred to ``to_level``; its (x, y) is
+        preserved (the two landing polygons are expected to overlap in
+        plan).
+        """
+        self._obj.add_landing(
+            from_level=from_level,
+            polygon_from=polygon_from,
+            to_level=to_level,
+            polygon_to=polygon_to,
+        )
 
     def switch_geometry(self, geometry: Geometry) -> None:
         """Switch the geometry of the simulation.
@@ -554,3 +610,12 @@ class Simulation:
         """
         internal_geometry = build_geometry(geometry)
         self._obj.switch_geometry(internal_geometry._obj)
+
+    @property
+    def timer(self) -> Timer:
+        """Timer for measuring time spent in different stages of the simulation.
+
+        Returns:
+            Timer object.
+        """
+        return self._timer

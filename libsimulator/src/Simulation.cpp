@@ -51,6 +51,74 @@ Simulation::Simulation(
     }
     _geometry = std::get<0>(tup->second).get();
     _routingEngine = std::get<1>(tup->second).get();
+    _primaryLevel = _geometry->Id();
+    _neighborhoodSearches.try_emplace(_primaryLevel, 2.2);
+    _levelElevations[_primaryLevel] = 0.0;
+}
+
+CollisionGeometry::ID
+Simulation::AddLevel(std::unique_ptr<CollisionGeometry>&& geometry, double elevation)
+{
+    JPS_TRACE_FUNC;
+    const auto id = geometry->Id();
+    const auto p = geometry->Polygon();
+    const auto& [_, inserted] = geometries.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(id),
+        std::forward_as_tuple(std::move(geometry), std::make_unique<RoutingEngine>(p)));
+    if(!inserted) {
+        throw SimulationError("Level already registered");
+    }
+    _neighborhoodSearches.try_emplace(id, 2.2);
+    _levelElevations[id] = elevation;
+    return id;
+}
+
+std::vector<CollisionGeometry::ID> Simulation::LevelIds() const
+{
+    std::vector<CollisionGeometry::ID> ids;
+    ids.reserve(geometries.size());
+    ids.push_back(_primaryLevel);
+    for(const auto& [id, _] : geometries) {
+        if(id != _primaryLevel) {
+            ids.push_back(id);
+        }
+    }
+    return ids;
+}
+
+double Simulation::LevelElevation(CollisionGeometry::ID id) const
+{
+    const auto it = _levelElevations.find(id);
+    if(it == std::end(_levelElevations)) {
+        throw SimulationError("Unknown level id: {}", id);
+    }
+    return it->second;
+}
+
+const CollisionGeometry& Simulation::LevelGeometry(CollisionGeometry::ID id) const
+{
+    const auto it = geometries.find(id);
+    if(it == std::end(geometries)) {
+        throw SimulationError("Unknown level id: {}", id);
+    }
+    return *std::get<0>(it->second);
+}
+
+void Simulation::AddLanding(
+    CollisionGeometry::ID from,
+    const std::vector<Point>& polyFrom,
+    CollisionGeometry::ID to,
+    const std::vector<Point>& polyTo)
+{
+    JPS_TRACE_FUNC;
+    if(geometries.find(from) == std::end(geometries)) {
+        throw SimulationError("Unknown level id (from): {}", from);
+    }
+    if(geometries.find(to) == std::end(geometries)) {
+        throw SimulationError("Unknown level id (to): {}", to);
+    }
+    _topology.AddLanding(from, polyFrom, to, polyTo);
 }
 const SimulationClock& Simulation::Clock() const
 {
@@ -59,34 +127,90 @@ const SimulationClock& Simulation::Clock() const
 
 void Simulation::SetTracing(bool status)
 {
-    _perfStats.SetEnabled(status);
-};
-
-PerfStats Simulation::GetLastStats() const
-{
-    return _perfStats;
+    if(status) {
+        Profiler::instance().enable();
+    } else {
+        Profiler::instance().disable();
+    }
 };
 
 void Simulation::Iterate()
 {
-    // LOG_DEBUG("Iteration {} / Time {}s", _clock.Iteration(), _clock.ElapsedTime());
-    auto t = _perfStats.TraceIterate();
-    _agentRemovalSystem.Run(_agents, _removedAgentsInLastIteration, _stageManager);
-    _neighborhoodSearch.Update(_agents);
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Total Iteration", General);
 
-    _stageSystem.Run(_stageManager, _neighborhoodSearch, *_geometry);
-    _stategicalDecisionSystem.Run(_journeys, _agents, _stageManager);
-    _tacticalDecisionSystem.Run(*_routingEngine, _agents);
     {
-        auto t2 = _perfStats.TraceOperationalDecisionSystemRun();
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Agent Removal System", Detailed);
+        _agentRemovalSystem.Run(_agents, _removedAgentsInLastIteration, _stageManager);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Neighborhood Search", Detailed);
+        // Partition agents by currentLevel into the per-level grids.
+        std::unordered_map<CollisionGeometry::ID, std::vector<GenericAgent>> bucketed;
+        for(const auto& a : _agents) {
+            bucketed[a.currentLevel].push_back(a);
+        }
+        for(auto& [id, ns] : _neighborhoodSearches) {
+            ns.Update(bucketed[id]);
+        }
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Stage System", Detailed);
+        // Stages are not yet level-aware; queue/waiting-set updates use the
+        // primary level's neighborhood + geometry. Multi-level stage
+        // ownership lands with the per-stage `level` field.
+        _stageSystem.Run(
+            _stageManager, _neighborhoodSearches.at(_primaryLevel), *_geometry);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Strategical Decision System", General);
+        _stategicalDecisionSystem.Run(_journeys, _agents, _stageManager);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Tactical Decision System", General);
+        _tacticalDecisionSystem.Run(
+            [this](CollisionGeometry::ID id) -> RoutingEngine& {
+                return *std::get<1>(geometries.at(id));
+            },
+            _agents);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Operational Decision System", General);
         _operationalDecisionSystem.Run(
-            _clock.dT(), _clock.ElapsedTime(), _neighborhoodSearch, *_geometry, _agents);
+            _clock.dT(),
+            _clock.ElapsedTime(),
+            [this](CollisionGeometry::ID id) -> const CollisionGeometry& {
+                return *std::get<0>(geometries.at(id));
+            },
+            [this](CollisionGeometry::ID id) -> const NeighborhoodSearch<GenericAgent>& {
+                return _neighborhoodSearches.at(id);
+            },
+            _agents);
+    }
+
+    {
+        JPS_SCOPED_TIMER_AND_TRACE(_timer, "Level Switch", Detailed);
+        // Level crossing: an agent in a landing polygon on its current
+        // level is transferred to the connected level. (x,y) is preserved;
+        // landings overlap in plan. Re-bucketing into the destination grid
+        // happens at the start of the next iteration.
+        for(auto& agent : _agents) {
+            const auto* landing = _topology.FindLanding(agent.currentLevel, agent.pos);
+            if(landing != nullptr) {
+                agent.currentLevel = landing->to;
+            }
+        }
     }
     _clock.Advance();
 }
 
 Journey::ID Simulation::AddJourney(const std::map<BaseStage::ID, TransitionDescription>& stages)
 {
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Add Journey", Detailed);
     std::map<BaseStage::ID, JourneyNode> nodes;
     bool containsDirectSteering =
         std::find_if(std::begin(stages), std::end(stages), [this](auto const& pair) {
@@ -162,6 +286,7 @@ Journey::ID Simulation::AddJourney(const std::map<BaseStage::ID, TransitionDescr
 
 BaseStage::ID Simulation::AddStage(const StageDescription stageDescription)
 {
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Add Stage", Detailed);
     std::visit(
         overloaded{
             [this](const WaypointDescription& d) -> void {
@@ -200,8 +325,16 @@ BaseStage::ID Simulation::AddStage(const StageDescription stageDescription)
 
 GenericAgent::ID Simulation::AddAgent(GenericAgent agent)
 {
-
-    if(!_geometry->InsideGeometry(agent.pos)) {
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Add Agent", Detailed);
+    if(agent.currentLevel == CollisionGeometry::ID::Invalid) {
+        agent.currentLevel = _primaryLevel;
+    }
+    const auto levelIter = geometries.find(agent.currentLevel);
+    if(levelIter == std::end(geometries)) {
+        throw SimulationError("Agent assigned to unknown level: {}", agent.currentLevel);
+    }
+    const auto& levelGeometry = *std::get<0>(levelIter->second);
+    if(!levelGeometry.InsideGeometry(agent.pos)) {
         throw SimulationError("Agent {} not inside walkable area", agent.pos);
     }
     if(_journeys.count(agent.journeyId) == 0) {
@@ -219,20 +352,26 @@ GenericAgent::ID Simulation::AddAgent(GenericAgent agent)
         }
 
     agent.orientation = agent.orientation.Normalized();
-    _operationalDecisionSystem.ValidateAgent(agent, _neighborhoodSearch, *_geometry);
+    auto& ns = _neighborhoodSearches.at(agent.currentLevel);
+    _operationalDecisionSystem.ValidateAgent(agent, ns, levelGeometry);
 
     _stageManager.HandleNewAgent(agent.stageId);
     _agents.emplace_back(std::move(agent));
-    _neighborhoodSearch.AddAgent(_agents.back());
+    ns.AddAgent(_agents.back());
 
     auto v = IteratorPair(std::prev(std::end(_agents)), std::end(_agents));
     _stategicalDecisionSystem.Run(_journeys, v, _stageManager);
-    _tacticalDecisionSystem.Run(*_routingEngine, v);
+    _tacticalDecisionSystem.Run(
+        [this](CollisionGeometry::ID id) -> RoutingEngine& {
+            return *std::get<1>(geometries.at(id));
+        },
+        v);
     return _agents.back().id.getID();
 }
 
 void Simulation::MarkAgentForRemoval(GenericAgent::ID id)
 {
+    JPS_TRACE_FUNC;
     const auto iter = std::find_if(
         std::begin(_agents), std::end(_agents), [id](auto& agent) { return agent.id == id; });
     if(iter == std::end(_agents)) {
@@ -244,6 +383,7 @@ void Simulation::MarkAgentForRemoval(GenericAgent::ID id)
 
 const GenericAgent& Simulation::Agent(GenericAgent::ID id) const
 {
+    JPS_TRACE_FUNC;
     const auto iter =
         std::find_if(_agents.begin(), _agents.end(), [id](auto& ped) { return id == ped.id; });
     if(iter == _agents.end()) {
@@ -254,6 +394,7 @@ const GenericAgent& Simulation::Agent(GenericAgent::ID id) const
 
 GenericAgent& Simulation::Agent(GenericAgent::ID id)
 {
+    JPS_TRACE_FUNC;
     const auto iter =
         std::find_if(_agents.begin(), _agents.end(), [id](auto& ped) { return id == ped.id; });
     if(iter == _agents.end()) {
@@ -297,6 +438,7 @@ void Simulation::SwitchAgentJourney(
     Journey::ID journey_id,
     BaseStage::ID stage_id)
 {
+    JPS_TRACE_FUNC;
     const auto find_iter = _journeys.find(journey_id);
     if(find_iter == std::end(_journeys)) {
         throw SimulationError("Unknown Journey id {}", journey_id);
@@ -313,35 +455,38 @@ void Simulation::SwitchAgentJourney(
 
 std::vector<GenericAgent::ID> Simulation::AgentsInRange(Point p, double distance)
 {
-    const auto neighbors = _neighborhoodSearch.GetNeighboringAgents(p, distance);
-
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Agents in Range", Debug);
+    // Spatial query unions across levels; the caller filters by level if it
+    // cares (AgentsInRange has no level argument today).
     std::vector<GenericAgent::ID> neighborIds{};
-    neighborIds.reserve(neighbors.size());
-    std::transform(
-        std::begin(neighbors),
-        std::end(neighbors),
-        std::back_inserter(neighborIds),
-        [](const auto& agent) { return agent.id; });
+    for(const auto& [_, ns] : _neighborhoodSearches) {
+        const auto neighbors = ns.GetNeighboringAgents(p, distance);
+        neighborIds.reserve(neighborIds.size() + neighbors.size());
+        for(const auto& a : neighbors) {
+            neighborIds.push_back(a.id);
+        }
+    }
     return neighborIds;
 }
 
 std::vector<GenericAgent::ID> Simulation::AgentsInPolygon(const std::vector<Point>& polygon)
 {
+    JPS_SCOPED_TIMER_AND_TRACE(_timer, "Agents in Polygon", Debug);
     const Polygon poly{polygon};
     if(!poly.IsConvex()) {
         throw SimulationError("Polygon needs to be simple and convex");
     }
     const auto [p, dist] = poly.ContainingCircle();
 
-    const auto candidates = _neighborhoodSearch.GetNeighboringAgents(p, dist);
     std::vector<GenericAgent::ID> result{};
-    result.reserve(candidates.size());
-    std::for_each(
-        std::begin(candidates), std::end(candidates), [&result, &poly](const auto& agent) {
+    for(const auto& [_, ns] : _neighborhoodSearches) {
+        const auto candidates = ns.GetNeighboringAgents(p, dist);
+        for(const auto& agent : candidates) {
             if(poly.IsInside(agent.pos)) {
                 result.push_back(agent.id);
             }
-        });
+        }
+    }
     return result;
 }
 
@@ -361,6 +506,7 @@ CollisionGeometry Simulation::Geo() const
 
 void Simulation::SwitchGeometry(std::unique_ptr<CollisionGeometry>&& geometry)
 {
+    JPS_TRACE_FUNC;
     ValidateGeometry(geometry);
     if(const auto& iter = geometries.find(geometry->Id()); iter != std::end(geometries)) {
         _geometry = std::get<0>(iter->second).get();
@@ -377,10 +523,15 @@ void Simulation::SwitchGeometry(std::unique_ptr<CollisionGeometry>&& geometry)
         _geometry = std::get<0>(tup->second).get();
         _routingEngine = std::get<1>(tup->second).get();
     }
+    _primaryLevel = _geometry->Id();
+    for(auto& agent : _agents) {
+        agent.currentLevel = _primaryLevel;
+    }
 }
 
 void Simulation::ValidateGeometry(const std::unique_ptr<CollisionGeometry>& geometry) const
 {
+    JPS_TRACE_FUNC;
     std::vector<GenericAgent::ID> faultyAgents;
     for(const auto& agent : _agents) {
         if(const auto find_iter = std::find(
@@ -441,4 +592,24 @@ void Simulation::ValidateGeometry(const std::unique_ptr<CollisionGeometry>& geom
 
         throw GeometrySwitchError(message.c_str(), faultyAgents, faultyStages);
     }
+}
+
+void Simulation::PushTimer(const std::string_view name, size_t probe_log_level)
+{
+    _timer.pushTimerProbe(name, probe_log_level);
+}
+
+void Simulation::PopTimer(const std::string_view name)
+{
+    _timer.popTimerProbe(name);
+}
+
+TimerEntry::duration_type Simulation::GetTimerDuration(const std::string_view name) const
+{
+    return _timer.getDuration(name);
+}
+
+std::map<std::string, TimerEntry::duration_type> Simulation::GetTimerDurations() const
+{
+    return _timer.getDurations();
 }

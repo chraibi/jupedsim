@@ -16,6 +16,7 @@
 #include <variant>
 class Journey;
 class BaseStage;
+class CollisionGeometry;
 
 struct GenericAgent {
     using ID = jps::UniqueID<GenericAgent>;
@@ -23,6 +24,12 @@ struct GenericAgent {
 
     jps::UniqueID<Journey> journeyId{jps::UniqueID<Journey>::Invalid};
     jps::UniqueID<BaseStage> stageId{jps::UniqueID<BaseStage>::Invalid};
+
+    // Geometry the agent currently lives on. Defaults to Invalid; the
+    // Simulation assigns the primary level when the agent is added. Reused
+    // by the routing/collision systems to look up the right per-level
+    // engine and neighborhood grid when multi-level support lands.
+    jps::UniqueID<CollisionGeometry> currentLevel{jps::UniqueID<CollisionGeometry>::Invalid};
 
     // This is evaluated by the "operational level"
     Point destination{};

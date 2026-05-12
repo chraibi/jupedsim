@@ -5,12 +5,27 @@ import sqlite3
 from pathlib import Path
 from typing import Final
 
+import shapely
 from shapely import from_wkt
 
 from jupedsim.serialization import TrajectoryWriter
 from jupedsim.simulation import Simulation
 
-DATABASE_VERSION: Final = 2
+# Schema layout per version:
+#   v1: trajectory_data + single geometry + metadata
+#   v2: + frame_data linking each frame to a geometry_hash (geometry switch)
+#   v3: + levels(id, z, wkt), landings(...), trajectory_data.level
+#       (multi-floor / 3D-viz support)
+DATABASE_VERSION: Final = 3
+
+
+def _polygon_wkt(boundary: list[tuple[float, float]], holes) -> str:
+    poly = shapely.Polygon(boundary, holes=holes)
+    return shapely.to_wkt(poly, rounding_precision=-1)
+
+
+def _ring_wkt(points: list[tuple[float, float]]) -> str:
+    return shapely.to_wkt(shapely.Polygon(points), rounding_precision=-1)
 
 
 def get_database_version(connection: sqlite3.Connection) -> int:
@@ -74,7 +89,7 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
         such as framerate etc...
         """
         fps = 1 / simulation.delta_time() / self._every_nth_frame
-        geo = simulation.get_geometry().as_wkt()
+        primary_geo = simulation.get_geometry().as_wkt()
 
         cur = self._con.cursor()
         try:
@@ -87,7 +102,8 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
                 "   pos_x REAL NOT NULL,"
                 "   pos_y REAL NOT NULL,"
                 "   ori_x REAL NOT NULL,"
-                "   ori_y REAL NOT NULL)"
+                "   ori_y REAL NOT NULL,"
+                "   level INTEGER NOT NULL DEFAULT 0)"
             )
             cur.execute("DROP TABLE IF EXISTS metadata")
             cur.execute(
@@ -97,6 +113,10 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
                 "INSERT INTO metadata VALUES(?, ?)",
                 (("version", DATABASE_VERSION), ("fps", fps)),
             )
+            # Legacy single-geometry table: kept populated with the primary
+            # level so v2 readers (and tools that grep `geometry`) still see
+            # something sensible. The authoritative multi-level data lives
+            # in the `levels` table below.
             cur.execute("DROP TABLE IF EXISTS geometry")
             cur.execute(
                 "CREATE TABLE geometry("
@@ -106,7 +126,7 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
             cur.execute("CREATE UNIQUE INDEX geometry_hash on geometry( hash)")
             cur.execute(
                 "INSERT INTO geometry VALUES(?, ?)",
-                (hash(geo), geo),
+                (hash(primary_geo), primary_geo),
             )
             cur.execute("DROP TABLE IF EXISTS frame_data")
             cur.execute(
@@ -118,6 +138,44 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
             cur.execute(
                 "CREATE INDEX frame_id_idx ON trajectory_data(frame, id)"
             )
+
+            # v3: per-level geometry + elevation.
+            cur.execute("DROP TABLE IF EXISTS levels")
+            cur.execute(
+                "CREATE TABLE levels("
+                "   id INTEGER NOT NULL PRIMARY KEY,"
+                "   z REAL NOT NULL,"
+                "   wkt TEXT NOT NULL)"
+            )
+            for level_id in simulation.level_ids():
+                geo = simulation.level_geometry(level_id)
+                wkt = _polygon_wkt(geo.boundary(), geo.holes())
+                z = simulation.level_elevation(level_id)
+                cur.execute(
+                    "INSERT INTO levels(id, z, wkt) VALUES(?, ?, ?)",
+                    (level_id, z, wkt),
+                )
+
+            # v3: oriented portals between levels.
+            cur.execute("DROP TABLE IF EXISTS landings")
+            cur.execute(
+                "CREATE TABLE landings("
+                "   from_level INTEGER NOT NULL,"
+                "   to_level INTEGER NOT NULL,"
+                "   polygon_from_wkt TEXT NOT NULL,"
+                "   polygon_to_wkt TEXT NOT NULL)"
+            )
+            for from_level, to_level, poly_from, poly_to in simulation.landings():
+                cur.execute(
+                    "INSERT INTO landings VALUES(?, ?, ?, ?)",
+                    (
+                        from_level,
+                        to_level,
+                        _ring_wkt(poly_from),
+                        _ring_wkt(poly_to),
+                    ),
+                )
+
             cur.execute("COMMIT")
         except sqlite3.Error as e:
             raise TrajectoryWriter.Exception(f"Error creating database: {e}")
@@ -147,11 +205,12 @@ class SqliteTrajectoryWriter(TrajectoryWriter):
                     agent.position[1],
                     agent.orientation[0],
                     agent.orientation[1],
+                    agent.level,
                 )
                 for agent in simulation.agents()
             ]
             cur.executemany(
-                "INSERT INTO trajectory_data VALUES(?, ?, ?, ?, ?, ?)",
+                "INSERT INTO trajectory_data VALUES(?, ?, ?, ?, ?, ?, ?)",
                 frame_data,
             )
 
@@ -237,10 +296,55 @@ def update_database_to_latest_version(connection: sqlite3.Connection):
         convert_database_v1_to_v2(connection)
         version = 2
 
-    # if version == 2:
-    #     convert_database_v2_to_v3
-    #     version = 3
-    # ... for future versions
+    if version == 2:
+        convert_database_v2_to_v3(connection)
+        version = 3
+
+
+def convert_database_v2_to_v3(connection: sqlite3.Connection):
+    """Upgrade a v2 file in place: add levels table seeded with the single
+    geometry at z=0, add a landings table (empty), and add a `level` column
+    to trajectory_data (all rows default to the seeded level id 0)."""
+    cur = connection.cursor()
+    try:
+        cur.execute("BEGIN")
+
+        version = get_database_version(connection)
+        if version != 2:
+            raise RuntimeError(
+                f"Internal Error: When converting from database version 2 to 3, encountered database version {version}."
+            )
+
+        cur.execute("UPDATE metadata SET value = ? WHERE key = ?", (3, "version"))
+
+        cur.execute(
+            "CREATE TABLE levels("
+            "   id INTEGER NOT NULL PRIMARY KEY,"
+            "   z REAL NOT NULL,"
+            "   wkt TEXT NOT NULL)"
+        )
+        res = cur.execute("SELECT wkt FROM geometry").fetchone()
+        if res is not None:
+            cur.execute(
+                "INSERT INTO levels(id, z, wkt) VALUES(?, ?, ?)", (0, 0.0, res[0])
+            )
+
+        cur.execute(
+            "CREATE TABLE landings("
+            "   from_level INTEGER NOT NULL,"
+            "   to_level INTEGER NOT NULL,"
+            "   polygon_from_wkt TEXT NOT NULL,"
+            "   polygon_to_wkt TEXT NOT NULL)"
+        )
+
+        cur.execute(
+            "ALTER TABLE trajectory_data ADD COLUMN level INTEGER NOT NULL DEFAULT 0"
+        )
+
+        cur.execute("COMMIT")
+        cur.execute("VACUUM")
+    except sqlite3.Error as e:
+        raise TrajectoryWriter.Exception(f"Error writing to database: {e}")
 
 
 def convert_database_v1_to_v2(connection: sqlite3.Connection):
