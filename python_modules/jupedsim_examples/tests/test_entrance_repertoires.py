@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+import dataclasses
 import math
 
+import pytest
 import shapely
 from jupedsim.repertoires import (
     BehaviouralState,
@@ -143,11 +145,13 @@ def test_passing_point_tie_goes_to_positive_normal():
 
 
 def test_passing_point_respects_wall_clearance():
-    pred = agent(1, (15.0, 0.5))
-    pp = passing_point(PARAMS, WALKABLE, (14.0, 0.5), pred, [pred])
-    # -n would end below the wall clearance; +n is (14.465, 1.095)
-    assert math.isclose(pp[0], 14.4646, abs_tol=1e-3)
-    assert math.isclose(pp[1], 1.0946, abs_tol=1e-3)
+    pred = agent(1, (15.0, 0.8))
+    own = (16.0, 0.2)
+    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred])
+    assert pp == pytest.approx((14.4854, 1.4126), abs=1e-3)
+    bare = dataclasses.replace(PARAMS, wall_clearance=0.0)
+    pp = passing_point(bare, WALKABLE, own, pred, [pred])
+    assert pp == pytest.approx((15.5146, 0.1874), abs=1e-3)
 
 
 def overtaking_state(**kw):
