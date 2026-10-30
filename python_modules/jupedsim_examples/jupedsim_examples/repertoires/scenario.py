@@ -42,6 +42,7 @@ _DT = 0.01
 _STATE_TYPES = {
     jps.CollisionFreeSpeedModel: jps.CollisionFreeSpeedModelState,
     jps.CollisionFreeSpeedModelV3: jps.CollisionFreeSpeedModelV3State,
+    jps.WarpDriverModel: jps.WarpDriverModelState,
 }
 
 # Run log of each controller built here, closed by ``run``.
