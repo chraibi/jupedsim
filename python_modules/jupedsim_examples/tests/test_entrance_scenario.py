@@ -217,3 +217,29 @@ def test_rule_selector_exposes_parameters():
         rules, EntranceParameters(), walkable_area()
     )
     assert selector.rules == rules
+
+
+@pytest.mark.parametrize(
+    "selector, entrance",
+    [
+        (FixedSelector(), EntranceParameters(abandon_span=10.0)),
+        (
+            EntranceRuleSelector(
+                RuleParameters(t_passes=8.0),
+                EntranceParameters(),
+                walkable_area(),
+            ),
+            EntranceParameters(),
+        ),
+    ],
+)
+def test_memory_window_must_cover_queried_spans(selector, entrance, tmp_path):
+    with pytest.raises(ValueError, match="memory window"):
+        build_entrance(
+            jps.CollisionFreeSpeedModel(),
+            n_agents=2,
+            seed=SEED,
+            selector=selector,
+            log_path=tmp_path / "log.jsonl",
+            entrance=entrance,
+        )

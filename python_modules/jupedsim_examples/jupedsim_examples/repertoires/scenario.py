@@ -37,6 +37,7 @@ _START = shapely.box(2, 0, 12, 10)
 
 _PERCEPTION = {"radius": 4.0, "half_angle_deg": 90.0}
 _MEMORY = {"window": 8.0, "pass_tolerance": 0.2}
+_DT = 0.01
 
 _STATE_TYPES = {
     jps.CollisionFreeSpeedModel: jps.CollisionFreeSpeedModelState,
@@ -67,6 +68,20 @@ def _rules_metadata(selector: Selector) -> dict:
     return {"rules": dataclasses.asdict(selector.rules)}
 
 
+def _check_memory_window(
+    selector: Selector, entrance: EntranceParameters, control_interval: int
+) -> None:
+    spans = [entrance.abandon_span]
+    if isinstance(selector, EntranceRuleSelector):
+        spans += [selector.rules.t_stall, selector.rules.t_passes]
+    needed = max(spans) + control_interval * _DT
+    if _MEMORY["window"] < needed:
+        raise ValueError(
+            f"memory window {_MEMORY['window']} s is shorter than the "
+            f"longest queried span plus one control interval, {needed} s"
+        )
+
+
 def build_entrance(
     model,
     *,
@@ -94,13 +109,16 @@ def build_entrance(
         The simulation and the controller driving its agents.
 
     Raises:
-        ValueError: If the model is not supported.
+        ValueError: If the model is not supported, or if the memory window
+            is shorter than the longest span the repertoires or rules
+            query plus one control interval.
     """
     state_type = _state_type(model)
+    _check_memory_window(selector, entrance, control_interval)
     walkable = walkable_area()
     surface = jps.WalkableSurface()
     region = surface.add_region(polygon=walkable)
-    sim = jps.Simulation(model=model, geometry=surface, dt=0.01)
+    sim = jps.Simulation(model=model, geometry=surface, dt=_DT)
     steering = sim.add_direct_steering_stage()
     steering_journey = sim.add_journey(jps.JourneyDescription([steering]))
     exit_stage = sim.add_exit_stage([(_EXIT, region)])
