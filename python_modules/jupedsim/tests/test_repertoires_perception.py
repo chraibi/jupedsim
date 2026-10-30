@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+import math
+
 import jupedsim as jps
 import pytest
 from jupedsim.repertoires.perception import (
@@ -43,6 +45,12 @@ def test_reappearance_ahead_is_not_a_pass():
 def test_progress_gained_over_span():
     mem = Memory(((0.0, -10.0), (2.0, -9.5), (4.0, -9.4)), (), False)
     assert progress_gained(mem, 4.0, 4.0) == pytest.approx(0.6)
+
+
+def test_progress_gained_is_infinite_without_full_span():
+    assert progress_gained(Memory((), (), False), 4.0, 4.0) == math.inf
+    mem = Memory(((2.0, -9.5), (4.0, -9.4)), (), False)
+    assert progress_gained(mem, 4.0, 4.0) == math.inf
 
 
 def test_forget_drops_departed_agent():

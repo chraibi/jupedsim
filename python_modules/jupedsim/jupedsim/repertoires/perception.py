@@ -169,11 +169,13 @@ class MemoryTracker:
 def progress_gained(memory: Memory, now: float, span: float) -> float:
     """Progress gained over the last ``span`` seconds before ``now``.
 
-    Returns 0.0 if the history holds no entries in that span.
+    Returns ``math.inf`` if the history does not cover the span, that is,
+    if it is empty or its earliest entry is later than ``now - span``.
     """
-    recent = [p for t, p in memory.progress_history if t >= now - span]
-    if not recent:
-        return 0.0
+    history = memory.progress_history
+    if not history or history[0][0] > now - span:
+        return math.inf
+    recent = [p for t, p in history if t >= now - span]
     return recent[-1] - recent[0]
 
 
