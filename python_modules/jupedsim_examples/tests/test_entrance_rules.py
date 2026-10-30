@@ -87,6 +87,15 @@ def test_stalled_without_gap_keeps_queueing():
     assert reasons(req) == ("overtake_withheld_no_gap",)
 
 
+def test_entry_requires_entry_clearance():
+    tight = ((1, (11.0, 5.0)), (2, (11.0, 6.3)), (3, (11.0, 3.7)))
+    req = request(others=tight)
+    assert decide(req) == ("queueing",)
+    assert reasons(req) == ("overtake_withheld_no_gap",)
+    wide = ((1, (11.0, 5.0)), (2, (11.0, 6.5)), (3, (11.0, 3.5)))
+    assert decide(request(others=wide)) == ("overtaking",)
+
+
 def test_stalled_without_anchor_keeps_queueing():
     assert decide(request(anchor=None)) == ("queueing",)
 

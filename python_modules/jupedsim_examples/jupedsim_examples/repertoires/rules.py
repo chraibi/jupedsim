@@ -7,7 +7,8 @@ results. Entry into overtaking separates two questions:
 - Motivation: the agent is stalled, or it has been passed repeatedly.
 - Feasibility: a passing point beside its predecessor is currently
   perceived (the same check the overtaking repertoire uses while it
-  executes).
+  executes, with the entry clearance ``entry_free_radius`` instead of
+  the continuation clearance ``continuation_free_radius``).
 
 A queueing agent starts overtaking only when it is motivated and the
 manoeuvre is feasible. A motivated agent without a passing point keeps
@@ -113,6 +114,7 @@ class EntranceRuleSelector:
             obs.position,
             anchor,
             obs.perceived,
+            self._entrance.entry_free_radius,
         )
         return point is not None
 

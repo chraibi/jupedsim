@@ -36,8 +36,10 @@ class EntranceParameters:
         queue_speed: Desired speed while queueing (m/s).
         lateral_offset: Lateral distance of the passing point (m).
         wall_clearance: Distance kept from the walls by passing points (m).
-        free_radius: Radius around a passing point that must be free of
-            other agents (m).
+        entry_free_radius: Radius around a passing point that must be
+            free of other agents to start an overtake (m).
+        continuation_free_radius: Radius around a passing point that must
+            stay free of other agents to continue an overtake (m).
         lateral_reach: Distance at which the lateral point counts as
             reached (m).
         ahead_offset: Distance ahead of the passing target in phase 2 (m).
@@ -59,7 +61,8 @@ class EntranceParameters:
     queue_speed: float = 1.0
     lateral_offset: float = 0.8
     wall_clearance: float = 0.25
-    free_radius: float = 0.4
+    entry_free_radius: float = 0.6
+    continuation_free_radius: float = 0.4
     lateral_reach: float = 0.3
     ahead_offset: float = 0.8
     overtake_speed: float = 1.4
@@ -113,19 +116,20 @@ def passing_point(
     own: Point,
     target: PerceivedAgent,
     perceived: Sequence[PerceivedAgent],
+    free_radius: float,
 ) -> Point | None:
     """Return the feasible lateral point closer to ``own``, or None.
 
     A candidate is feasible if it lies inside ``walkable`` shrunk by the
     wall clearance and no perceived agent other than ``target`` is within
-    the free radius. Ties go to the ``+n`` side.
+    ``free_radius``. Ties go to the ``+n`` side.
     """
     inner = walkable.buffer(-params.wall_clearance)
     others = [p.position for p in perceived if p.id != target.id]
     feasible = [
         c
         for c in _lateral_candidates(params, target.position)
-        if _is_feasible(params, inner, others, c)
+        if _is_feasible(inner, others, c, free_radius)
     ]
     if not feasible:
         return None
@@ -133,14 +137,14 @@ def passing_point(
 
 
 def _is_feasible(
-    params: EntranceParameters,
     inner: shapely.Polygon,
     others: Sequence[Point],
     point: Point,
+    free_radius: float,
 ) -> bool:
     if not inner.covers(shapely.Point(point)):
         return False
-    return all(math.dist(point, o) >= params.free_radius for o in others)
+    return all(math.dist(point, o) >= free_radius for o in others)
 
 
 def _acquire_predecessor(
@@ -306,13 +310,25 @@ class Overtaking:
         target: PerceivedAgent,
     ) -> Command:
         point = passing_point(
-            self._params, self._walkable, obs.position, target, obs.perceived
+            self._params,
+            self._walkable,
+            obs.position,
+            target,
+            obs.perceived,
+            self._free_radius(obs, state),
         )
         if point is None:
             return self._abandon(obs, state, ABANDONED_NO_GAP)
         if math.dist(obs.position, point) < self._params.lateral_reach:
             return self._pass(dataclasses.replace(state, phase=2), target)
         return self._command(dataclasses.replace(state, target=point))
+
+    def _free_radius(self, obs: Observation, state: BehaviouralState) -> float:
+        # The first control step shares the snapshot of the entry decision,
+        # so it chooses the point that satisfied the entry clearance.
+        if obs.time == state.commitment_since:
+            return self._params.entry_free_radius
+        return self._params.continuation_free_radius
 
     def _pass(self, state: BehaviouralState, target: PerceivedAgent) -> Command:
         ux, uy = _unit(target.position, self._params.entrance)

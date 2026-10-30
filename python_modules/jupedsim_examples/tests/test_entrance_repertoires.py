@@ -138,32 +138,32 @@ def test_no_handoff_before_door_opens():
 
 def test_passing_point_prefers_closer_free_side():
     own, pred = (14.0, 5.3), agent(1, (15.0, 5.0))
-    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred])
+    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred], 0.4)
     assert pp is not None
     assert math.isclose(pp[0], 15.0) and math.isclose(pp[1], 5.8)
     block = agent(2, (15.0, 5.8))
-    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred, block])
+    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred, block], 0.4)
     assert math.isclose(pp[1], 4.2)
     block2 = agent(3, (15.0, 4.2))
     assert (
-        passing_point(PARAMS, WALKABLE, own, pred, [pred, block, block2])
+        passing_point(PARAMS, WALKABLE, own, pred, [pred, block, block2], 0.4)
         is None
     )
 
 
 def test_passing_point_tie_goes_to_positive_normal():
     pred = agent(1, (15.0, 5.0))
-    pp = passing_point(PARAMS, WALKABLE, (14.0, 5.0), pred, [pred])
+    pp = passing_point(PARAMS, WALKABLE, (14.0, 5.0), pred, [pred], 0.4)
     assert math.isclose(pp[1], 5.8)
 
 
 def test_passing_point_respects_wall_clearance():
     pred = agent(1, (15.0, 0.8))
     own = (16.0, 0.2)
-    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred])
+    pp = passing_point(PARAMS, WALKABLE, own, pred, [pred], 0.4)
     assert pp == pytest.approx((14.4854, 1.4126), abs=1e-3)
     bare = dataclasses.replace(PARAMS, wall_clearance=0.0)
-    pp = passing_point(bare, WALKABLE, own, pred, [pred])
+    pp = passing_point(bare, WALKABLE, own, pred, [pred], 0.4)
     assert pp == pytest.approx((15.5146, 0.1874), abs=1e-3)
 
 
@@ -195,6 +195,15 @@ def test_overtake_steers_to_lateral_point_then_ahead():
     cmd = ot.control(o, overtaking_state())
     assert cmd.state.phase == 2
     assert math.isclose(cmd.target[0], 15.8) and cmd.target[1] == 5.0
+
+
+def test_first_control_uses_entry_clearance():
+    ot = Overtaking(PARAMS, WALKABLE)
+    o = obs((14.0, 5.3), [(1, (15, 5)), (2, (15, 6.3))])
+    entering = ot.control(o, overtaking_state(commitment_since=o.time))
+    assert entering.target == (15.0, 4.2)
+    continuing = ot.control(o, overtaking_state())
+    assert continuing.target == (15.0, 5.8)
 
 
 def test_overtake_completes_past_target():
