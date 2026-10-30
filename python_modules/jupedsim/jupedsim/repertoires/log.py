@@ -81,6 +81,20 @@ class RunLog:
             }
         )
 
+    def handoff(
+        self, time: float, agent_id: int, unit_id: int, repertoire: str
+    ) -> None:
+        """Log that an agent left the layer from the given repertoire."""
+        self._write(
+            {
+                "type": "handoff",
+                "time": time,
+                "agent_id": agent_id,
+                "unit_id": unit_id,
+                "repertoire": repertoire,
+            }
+        )
+
     def execution(
         self, time: float, agent_id: int, repertoire: str, execution: str
     ) -> None:

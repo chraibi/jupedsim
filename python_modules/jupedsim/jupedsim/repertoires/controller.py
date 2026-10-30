@@ -366,6 +366,7 @@ class RepertoireController:
             self._memory.clear_anchor_lost(agent_id)
         self._log.execution(now, agent_id, state.repertoire, state.execution)
         if command.handoff:
+            self._log.handoff(now, agent_id, state.unit_id, state.repertoire)
             self._sim.switch_agent_journey(
                 agent_id, self._exit_journey, self._exit_stage
             )

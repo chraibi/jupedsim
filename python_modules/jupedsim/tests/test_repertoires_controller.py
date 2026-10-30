@@ -305,3 +305,24 @@ def test_handoff_switches_to_exit_journey(tmp_path):
         ctrl.step()
     assert sim.agent(agent_id).journey_id == ids[2]
     assert agent_id not in ctrl.states
+
+
+def test_handoff_is_logged_with_active_repertoire(tmp_path):
+    sim, room, ids = make_sim()
+    (agent_id,) = add_agents(sim, room, ids, [(2.0, 5.0)])
+    reps = [StubRepertoire("a", handoff=True)]
+    path = tmp_path / "log.jsonl"
+    with RunLog(path, {}) as log:
+        ctrl = make_controller(sim, ids, reps, SwapSelector(), log)
+        ctrl.add(agent_id, "a")
+        ctrl.step()
+    handoffs = [r for r in load_records(path) if r["type"] == "handoff"]
+    assert handoffs == [
+        {
+            "type": "handoff",
+            "time": 0.0,
+            "agent_id": agent_id,
+            "unit_id": agent_id,
+            "repertoire": "a",
+        }
+    ]
