@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 import dataclasses
 import json
-import time
 
 import jupedsim as jps
 import pytest
@@ -71,10 +70,7 @@ def run_scenario(model, selector, log_path, aligned=False):
         log_path=log_path,
     )
     ids = sorted(controller.states)
-    start = time.perf_counter()
     run(sim, controller, MAX_TIME)
-    wall = time.perf_counter() - start
-    print(f"{type(selector).__name__} {type(model).__name__}: {wall:.1f} s")
     return sim, ids
 
 
@@ -149,14 +145,19 @@ def normalised(path, ids):
     }
 
 
-def test_replay_reproduces_transitions(rules_run, tmp_path):
-    _, ids_a, log_a = rules_run
+def test_replay_reproduces_transitions(tmp_path):
+    # CollisionFreeSpeedModelV3 gives many transitions under the rules,
+    # so the comparison below covers queueing and overtaking alike.
+    log_a = tmp_path / "rules.jsonl"
+    _, ids_a = run_scenario(
+        jps.CollisionFreeSpeedModelV3(), rule_selector(), log_a
+    )
     shifted = tmp_path / "shifted.jsonl"
     log_b = tmp_path / "replay.jsonl"
     offset = align_agent_ids() - ids_a[0]
     shift_units(log_a, shifted, offset)
     _, ids_b = run_scenario(
-        jps.CollisionFreeSpeedModel(),
+        jps.CollisionFreeSpeedModelV3(),
         ReplaySelector(shifted),
         log_b,
         aligned=True,
@@ -167,7 +168,9 @@ def test_replay_reproduces_transitions(rules_run, tmp_path):
         meta_b["seed"],
         meta_b["model"],
     )
-    assert normalised(log_a, ids_a) == normalised(log_b, ids_b)
+    expected = normalised(log_a, ids_a)
+    assert sum(len(records) for records in expected.values()) > 10
+    assert normalised(log_b, ids_b) == expected
 
 
 def test_metadata_records_run(rules_run):

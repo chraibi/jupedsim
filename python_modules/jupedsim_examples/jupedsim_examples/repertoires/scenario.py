@@ -165,4 +165,6 @@ def run(
         while sim.agent_count() > 0 and sim.elapsed_time() < max_time:
             controller.step()
     finally:
-        _LOGS.pop(controller).close()
+        log = _LOGS.pop(controller, None)
+        if log is not None:
+            log.close()
