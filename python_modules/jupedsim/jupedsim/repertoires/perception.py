@@ -132,7 +132,7 @@ class MemoryTracker:
             rec.behind_since.pop(agent_id, None)
 
     def mark_anchor_lost(self, agent_id: int) -> None:
-        """Flag that the agent's anchor was lost from perception."""
+        """Flag that the agent's anchor has left the simulation."""
         self._records.setdefault(agent_id, _AgentRecord()).anchor_lost = True
 
     def clear_anchor_lost(self, agent_id: int) -> None:

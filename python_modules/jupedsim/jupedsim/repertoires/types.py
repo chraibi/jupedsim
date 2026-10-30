@@ -35,7 +35,7 @@ class Memory:
     Attributes:
         progress_history: ``(time, progress)`` pairs.
         passes: ``(time, passer_id)`` pairs.
-        anchor_lost: True if the anchor agent was lost from perception.
+        anchor_lost: True if the anchor agent has left the simulation.
     """
 
     progress_history: tuple[tuple[float, float], ...]
@@ -124,8 +124,8 @@ class Command:
         execution: Name of the execution mode.
         state: State after this control step.
         event: Event emitted by the repertoire, if any.
-        handoff: True if the repertoire hands control back for a new
-            decision.
+        handoff: True if the agent leaves the layer and is switched to
+            the exit journey.
     """
 
     target: tuple[float, float] | None
