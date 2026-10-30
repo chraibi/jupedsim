@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+from .controller import RepertoireController, model_capabilities
 from .selectors import FixedSelector, ReplaySelector, sampling_seed, validate
 from .types import (
     BehaviouralState,
@@ -26,9 +27,11 @@ __all__ = [
     "Observation",
     "PerceivedAgent",
     "Repertoire",
+    "RepertoireController",
     "ReplaySelector",
     "Selector",
     "SelectorError",
+    "model_capabilities",
     "sampling_seed",
     "validate",
 ]
