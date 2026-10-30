@@ -28,11 +28,15 @@ from .entrance import (
     heading,
     progress,
 )
+from .rules import EntranceRuleSelector
 
 _APPROACH = shapely.box(0, 0, 20, 10)
 _CORRIDOR = shapely.box(20, 4.5, 22, 5.5)
 _EXIT = shapely.box(21.5, 4.5, 22, 5.5)
 _START = shapely.box(2, 0, 12, 10)
+
+_PERCEPTION = {"radius": 4.0, "half_angle_deg": 90.0}
+_MEMORY = {"window": 8.0, "pass_tolerance": 0.2}
 
 _STATE_TYPES = {
     jps.CollisionFreeSpeedModel: jps.CollisionFreeSpeedModelState,
@@ -55,6 +59,12 @@ def _state_type(model):
     if state_type is None:
         raise ValueError(f"unsupported model {type(model).__name__}")
     return state_type
+
+
+def _rules_metadata(selector: Selector) -> dict:
+    if not isinstance(selector, EntranceRuleSelector):
+        return {}
+    return {"rules": dataclasses.asdict(selector.rules)}
 
 
 def build_entrance(
@@ -122,6 +132,10 @@ def build_entrance(
             "entrance": dataclasses.asdict(entrance),
             "control_interval": control_interval,
             "decision_period": decision_period,
+            "jupedsim_version": jps.__version__,
+            "perception": _PERCEPTION,
+            "memory": _MEMORY,
+            **_rules_metadata(selector),
         },
     )
     controller = RepertoireController(
@@ -133,11 +147,10 @@ def build_entrance(
         selector=selector,
         perception=Perception(
             progress=progress(entrance),
-            radius=4.0,
-            half_angle_deg=90.0,
             heading=heading(entrance),
+            **_PERCEPTION,
         ),
-        memory=MemoryTracker(window=8.0, pass_tolerance=0.2),
+        memory=MemoryTracker(**_MEMORY),
         log=log,
         steering_journey=steering_journey,
         steering_stage=steering,

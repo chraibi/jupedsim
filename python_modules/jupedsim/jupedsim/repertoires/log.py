@@ -28,7 +28,13 @@ class RunLog:
             path: File to write.
             metadata: Selector name and config, backend/model version,
                 seed and parameters of the run.
+
+        Raises:
+            ValueError: If ``metadata`` contains the reserved key
+                ``"type"``.
         """
+        if "type" in metadata:
+            raise ValueError('metadata must not contain the key "type"')
         self._file = open(path, "w", encoding="utf-8")
         self._last_execution: dict[int, tuple[str, str]] = {}
         self._write({"type": "metadata", **metadata})

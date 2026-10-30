@@ -2,6 +2,7 @@
 
 import json
 
+import pytest
 from jupedsim.repertoires.log import RunLog, load_records, transitions_by_agent
 from jupedsim.repertoires.types import (
     BehaviouralState,
@@ -31,6 +32,13 @@ def test_first_record_is_metadata(tmp_path):
         pass
     first = json.loads(path.read_text().splitlines()[0])
     assert first == {"type": "metadata", "seed": 3, "selector": "fixed"}
+
+
+def test_metadata_with_type_key_rejected(tmp_path):
+    path = tmp_path / "run.jsonl"
+    with pytest.raises(ValueError, match="type"):
+        RunLog(path, {"type": "other"})
+    assert not path.exists()
 
 
 def test_transitions_by_agent_groups_and_sorts(tmp_path):

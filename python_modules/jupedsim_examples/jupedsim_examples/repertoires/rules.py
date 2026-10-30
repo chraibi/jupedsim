@@ -54,6 +54,11 @@ class EntranceRuleSelector:
         self._entrance = entrance
         self._walkable = walkable
 
+    @property
+    def rules(self) -> RuleParameters:
+        """Parameters of the selection rules (read-only)."""
+        return self._rules
+
     def decide(self, requests: Sequence[DecisionRequest]) -> Sequence[Decision]:
         """Return one decision per request, in request order."""
         return [Decision(r.unit_id, (self._select(r),)) for r in requests]

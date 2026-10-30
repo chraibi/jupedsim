@@ -193,3 +193,27 @@ def test_metadata_records_run(rules_run):
     )
     assert metadata["control_interval"] == 10
     assert metadata["decision_period"] == 2.0
+    assert metadata["rules"] == dataclasses.asdict(RuleParameters())
+    assert metadata["jupedsim_version"] == jps.__version__
+    assert metadata["perception"] == {"radius": 4.0, "half_angle_deg": 90.0}
+    assert metadata["memory"] == {"window": 8.0, "pass_tolerance": 0.2}
+
+
+def test_metadata_omits_rules_of_other_selectors(tmp_path):
+    log_path = tmp_path / "fixed.jsonl"
+    build_entrance(
+        jps.CollisionFreeSpeedModel(),
+        n_agents=2,
+        seed=SEED,
+        selector=FixedSelector(),
+        log_path=log_path,
+    )
+    assert "rules" not in load_records(log_path)[0]
+
+
+def test_rule_selector_exposes_parameters():
+    rules = RuleParameters(t_stall=3.0)
+    selector = EntranceRuleSelector(
+        rules, EntranceParameters(), walkable_area()
+    )
+    assert selector.rules == rules
