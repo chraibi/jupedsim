@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="states-title states-desc" id="states-root">
+<title id="states-title">Repertoire and phase transitions</title>
+<desc id="states-desc">State machine of one agent: queueing, the two phases of overtaking, return by completion or abandonment, and handoff to the exit journey.</desc>
+<defs>
+      <style>#states-root { --color-paper:   #f5f5f5;   
+      --color-ink:     #2d3142;   
+      --color-muted:   #4f5d75;   
+      --color-accent:  #bf4520;   
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', 'Noto Serif', 'Noto Serif KR', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace; }
+      #states-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #states-root .diagram-container { width: 100%; overflow-x: auto; }
+      #states-root .diagram-container { overflow-x: visible; }</style>
+<marker id="states-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+<marker id="states-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+<marker id="states-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#f5f5f5"/>
+<path d="M 30 260 L 58 260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<path d="M 240 244 L 388 244" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<path d="M 570 244 L 718 244" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<path d="M 390 284 L 242 284" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<path d="M 780 300 L 780 372 Q 780 380 772 380 L 188 380 Q 180 380 180 372 L 180 302" fill="none" stroke="#bf4520" stroke-width="1.2" marker-end="url(#states-arrow-accent)"/>
+<path d="M 840 300 L 840 412 Q 840 420 832 420 L 128 420 Q 120 420 120 412 L 120 302" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<path d="M 130 220 L 130 168 Q 130 160 138 160 L 162 160 Q 170 160 170 168 L 170 218" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#states-arrow)"/>
+<path d="M 900 110 L 922 110" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#states-arrow)"/>
+<rect x="279" y="224" width="70" height="12" rx="2" fill="#f5f5f5"/>
+<text x="314" y="233" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">MOTIVE + GAP</text>
+<rect x="607" y="224" width="74" height="12" rx="2" fill="#f5f5f5"/>
+<text x="644" y="233" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">POINT REACHED</text>
+<rect x="294" y="292" width="45" height="12" rx="2" fill="#f5f5f5"/>
+<text x="316" y="301" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ABANDON</text>
+<rect x="455" y="360" width="50" height="12" rx="2" fill="#f5f5f5"/>
+<text x="480" y="369" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">COMPLETE</text>
+<rect x="458" y="400" width="45" height="12" rx="2" fill="#f5f5f5"/>
+<text x="480" y="409" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">ABANDON</text>
+<rect x="125" y="140" width="50" height="12" rx="2" fill="#f5f5f5"/>
+<text x="150" y="149" fill="#4f5d75" font-size="8" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">WITHHELD</text>
+<circle cx="24" cy="260" r="6" fill="#2d3142"/>
+<circle cx="932" cy="110" r="8" fill="none" stroke="#2d3142" stroke-width="1.2"/><circle cx="932" cy="110" r="5" fill="#2d3142"/>
+<rect x="60" y="220" width="180" height="80" rx="6" fill="#f5f5f5"/>
+<rect x="60" y="220" width="180" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="150.0" y="258.0" fill="#2d3142" font-size="13" font-weight="600" font-family="Geist, system-ui, sans-serif" text-anchor="middle">Queueing</text>
+<text x="150.0" y="275.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">standing · advancing</text>
+<rect x="390" y="220" width="180" height="80" rx="6" fill="#f5f5f5"/>
+<rect x="390" y="220" width="180" height="80" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="480.0" y="258.0" fill="#2d3142" font-size="13" font-weight="600" font-family="Geist, system-ui, sans-serif" text-anchor="middle">Overtaking · lateral</text>
+<text x="480.0" y="275.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">phase 1 · to c</text>
+<rect x="720" y="220" width="180" height="80" rx="6" fill="#f5f5f5"/>
+<rect x="720" y="220" width="180" height="80" rx="6" fill="#bf4520" fill-opacity="0.08" stroke="#bf4520" stroke-width="1"/>
+<text x="810.0" y="258.0" fill="#2d3142" font-size="13" font-weight="600" font-family="Geist, system-ui, sans-serif" text-anchor="middle">Overtaking · passing</text>
+<text x="810.0" y="275.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">phase 2 · to a</text>
+<rect x="720" y="80" width="180" height="60" rx="6" fill="#f5f5f5"/>
+<rect x="720" y="80" width="180" height="60" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="810.0" y="108.0" fill="#2d3142" font-size="13" font-weight="600" font-family="Geist, system-ui, sans-serif" text-anchor="middle">Exit journey</text>
+<text x="810.0" y="125.0" fill="#4f5d75" font-size="9" font-family="'Geist Mono', ui-monospace, monospace" text-anchor="middle">handed off</text>
+<text x="700" y="102" fill="#4f5d75" font-size="14" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="end">From any controlled state, once</text>
+<text x="700" y="122" fill="#4f5d75" font-size="14" font-style="italic" font-family="'Instrument Serif', serif" text-anchor="end">|x − E| &lt; 1 m and t ≥ t_open.</text>
+</svg>
