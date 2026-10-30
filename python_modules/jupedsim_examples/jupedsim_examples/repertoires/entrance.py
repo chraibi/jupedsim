@@ -48,6 +48,8 @@ class EntranceParameters:
         abandon_progress: Minimum progress over ``abandon_span`` (m).
         handoff_radius: Distance to ``E`` below which control is handed
             off (m).
+        door_open_time: Time before which no agent is handed off, e.g.
+            while the entrance is closed (s).
     """
 
     entrance: Point = (20.0, 5.0)
@@ -65,6 +67,7 @@ class EntranceParameters:
     abandon_span: float = 2.0
     abandon_progress: float = 0.1
     handoff_radius: float = 1.0
+    door_open_time: float = 0.0
 
 
 def progress(params: EntranceParameters) -> Callable[[Point], float]:
@@ -160,6 +163,8 @@ def _find(obs: Observation, agent_id: int | None) -> PerceivedAgent | None:
 def _handoff(
     params: EntranceParameters, obs: Observation, state: BehaviouralState
 ) -> Command | None:
+    if obs.time < params.door_open_time:
+        return None
     if math.dist(obs.position, params.entrance) >= params.handoff_radius:
         return None
     return Command(

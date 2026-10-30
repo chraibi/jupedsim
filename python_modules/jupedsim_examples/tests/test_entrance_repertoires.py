@@ -123,6 +123,16 @@ def test_handoff_near_entrance():
     assert not q.control(obs((18.9, 5), []), state()).handoff
 
 
+def test_no_handoff_before_door_opens():
+    params = dataclasses.replace(PARAMS, door_open_time=20.0)
+    q = Queueing(params, WALKABLE)
+    assert not q.control(obs((19.5, 5), [], time=19.9), state()).handoff
+    assert q.control(obs((19.5, 5), [], time=20.0), state()).handoff
+    ot = Overtaking(params, WALKABLE)
+    closed = obs((19.5, 5), [], time=19.9)
+    assert not ot.control(closed, state("overtaking", anchor=1)).handoff
+
+
 def test_passing_point_prefers_closer_free_side():
     own, pred = (14.0, 5.3), agent(1, (15.0, 5.0))
     pp = passing_point(PARAMS, WALKABLE, own, pred, [pred])
