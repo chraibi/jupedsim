@@ -37,7 +37,10 @@ class ReplaySelector:
             path: Log file written by ``RunLog``.
         """
         self._responses = {
-            (r["unit_index"], r["decision_index"]): tuple(r["repertoires"])
+            (r["unit_index"], r["decision_index"]): (
+                tuple(r["repertoires"]),
+                tuple(r.get("reasons", ())),
+            )
             for r in load_records(path)
             if r["type"] == "response"
         }
@@ -57,7 +60,8 @@ class ReplaySelector:
                 f"no logged response for unit index {req.unit_index}, "
                 f"decision {req.decision_index}"
             )
-        return Decision(req.unit_id, self._responses[key])
+        repertoires, reasons = self._responses[key]
+        return Decision(req.unit_id, repertoires, reasons)
 
 
 def validate(

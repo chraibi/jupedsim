@@ -108,10 +108,18 @@ class DecisionRequest:
 
 @dataclasses.dataclass(frozen=True)
 class Decision:
-    """A selector's answer: one repertoire name per member, in order."""
+    """A selector's answer: one repertoire name per member, in order.
+
+    Attributes:
+        unit_id: Decision unit the answer is for.
+        repertoires: One repertoire name per member, in member order.
+        reasons: Free-form labels the selector attaches for the log, e.g.
+            why a switch was withheld; they do not affect execution.
+    """
 
     unit_id: int
     repertoires: tuple[str, ...]
+    reasons: tuple[str, ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)

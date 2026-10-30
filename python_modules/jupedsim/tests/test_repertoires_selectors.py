@@ -64,6 +64,14 @@ def test_replay_matches_on_unit_index(tmp_path):
     assert decisions == [Decision(7, ("b",))]
 
 
+def test_replay_restores_reasons(tmp_path):
+    path = tmp_path / "log.jsonl"
+    with RunLog(path, {}) as log:
+        log.response(Decision(1, ("b",), ("why",)), 0, 0.0, unit_index=1)
+    decisions = ReplaySelector(path).decide([_request(1, 0)])
+    assert decisions == [Decision(1, ("b",), ("why",))]
+
+
 def test_replay_missing_entry_raises(tmp_path):
     path = tmp_path / "log.jsonl"
     with RunLog(path, {}) as log:
