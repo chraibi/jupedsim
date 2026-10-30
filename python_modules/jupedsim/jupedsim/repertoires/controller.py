@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 
 import shapely
 
+from jupedsim.repertoires.diagnostics import anchor_cycles, anchor_structure
 from jupedsim.repertoires.log import RunLog
 from jupedsim.repertoires.perception import (
     MemoryTracker,
@@ -176,7 +177,14 @@ class RepertoireController:
         decisions = self._decide(requests)
         self._apply_decisions(requests, decisions, observations)
         self._control_all(observations, live, now)
+        self._log_diagnostics(now)
         self._sim.iterate(self._control_interval)
+
+    def _log_diagnostics(self, now: float) -> None:
+        anchors = {i: s.anchor for i, s in sorted(self._states.items())}
+        self._log.diagnostic(now, "anchor_structure", anchor_structure(anchors))
+        for cycle in anchor_cycles(anchors):
+            self._log.diagnostic(now, "anchor_cycle", {"members": list(cycle)})
 
     def _drop_departed(self) -> set[int]:
         live = {agent.id for agent in self._sim.agents()}
