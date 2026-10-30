@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
+import pytest
 import shapely
 from jupedsim.repertoires import (
     BehaviouralState,
@@ -64,8 +65,16 @@ def request(
     )
 
 
+BLOCKERS = ((1, (11.0, 5.0)), (2, (11.0, 5.8)), (3, (11.0, 4.2)))
+RECENT_PASSES = ((7.0, 5), (9.0, 6))
+
+
 def decide(req):
     return selector().decide([req])[0].repertoires
+
+
+def reasons(req):
+    return selector().decide([req])[0].reasons
 
 
 def test_stalled_with_gap_overtakes():
@@ -73,8 +82,9 @@ def test_stalled_with_gap_overtakes():
 
 
 def test_stalled_without_gap_keeps_queueing():
-    blockers = ((1, (11.0, 5.0)), (2, (11.0, 5.8)), (3, (11.0, 4.2)))
-    assert decide(request(others=blockers)) == ("queueing",)
+    req = request(others=BLOCKERS)
+    assert decide(req) == ("queueing",)
+    assert reasons(req) == ("overtake_withheld_no_gap",)
 
 
 def test_stalled_without_anchor_keeps_queueing():
@@ -85,10 +95,33 @@ def test_moving_agent_keeps_queueing():
     assert decide(request(history=MOVING)) == ("queueing",)
 
 
-def test_two_recent_passes_trigger_overtaking():
-    passes = ((7.0, 5), (9.0, 6))
-    req = request(history=MOVING, passes=passes, anchor=None, others=())
+def test_two_recent_passes_with_gap_trigger_overtaking():
+    req = request(history=MOVING, passes=RECENT_PASSES)
     assert decide(req) == ("overtaking",)
+    assert reasons(req) == ()
+
+
+def test_two_recent_passes_without_gap_keep_queueing():
+    req = request(history=MOVING, passes=RECENT_PASSES, others=BLOCKERS)
+    assert decide(req) == ("queueing",)
+    assert reasons(req) == ("overtake_withheld_no_gap",)
+
+
+def test_two_recent_passes_without_anchor_keep_queueing():
+    req = request(history=MOVING, passes=RECENT_PASSES, anchor=None)
+    assert decide(req) == ("queueing",)
+    assert reasons(req) == ("overtake_withheld_no_gap",)
+
+
+def test_gap_opening_while_passes_remembered_enters_overtaking():
+    blocked = request(history=MOVING, passes=RECENT_PASSES, others=BLOCKERS)
+    opened = request(history=MOVING, passes=RECENT_PASSES)
+    assert decide(blocked) == ("queueing",)
+    assert decide(opened) == ("overtaking",)
+
+
+def test_unmotivated_agent_gives_no_reason():
+    assert reasons(request(history=MOVING)) == ()
 
 
 def test_old_passes_do_not_count():
@@ -101,8 +134,16 @@ def test_completed_overtake_returns_to_queueing():
     assert decide(req) == ("queueing",)
 
 
-def test_abandoned_overtake_returns_to_queueing():
-    req = request(repertoire="overtaking", events=("overtake_abandoned",))
+@pytest.mark.parametrize(
+    "event",
+    [
+        "overtake_abandoned_no_gap",
+        "overtake_abandoned_target_lost",
+        "overtake_abandoned_stalled",
+    ],
+)
+def test_abandoned_overtake_returns_to_queueing(event):
+    req = request(repertoire="overtaking", events=(event,))
     assert decide(req) == ("queueing",)
 
 

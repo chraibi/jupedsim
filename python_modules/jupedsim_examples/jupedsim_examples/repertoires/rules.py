@@ -2,10 +2,20 @@
 """Rule-based selector for the entrance example.
 
 The rules below are milestone-1 scientific assumptions, not validated
-results: a queueing agent switches to overtaking when it is stalled and
-a passing point exists, or when it has been passed repeatedly; an
+results. Entry into overtaking separates two questions:
+
+- Motivation: the agent is stalled, or it has been passed repeatedly.
+- Feasibility: a passing point beside its predecessor is currently
+  perceived (the same check the overtaking repertoire uses while it
+  executes).
+
+A queueing agent starts overtaking only when it is motivated and the
+manoeuvre is feasible. A motivated agent without a passing point keeps
+queueing; the decision carries the reason ``overtake_withheld_no_gap``.
+Motivation lasts as long as its memory window, so the agent enters
+overtaking if a gap opens while that condition still holds. An
 overtaking agent returns to queueing once the overtake has completed or
-been abandoned.
+been abandoned, whatever the abandonment reason.
 """
 
 import dataclasses
@@ -21,6 +31,8 @@ from jupedsim.repertoires import (
 from jupedsim.repertoires.perception import passes_since, progress_gained
 
 from .entrance import EntranceParameters, Overtaking, Queueing, passing_point
+
+WITHHELD_NO_GAP = "overtake_withheld_no_gap"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -61,35 +73,37 @@ class EntranceRuleSelector:
 
     def decide(self, requests: Sequence[DecisionRequest]) -> Sequence[Decision]:
         """Return one decision per request, in request order."""
-        return [Decision(r.unit_id, (self._select(r),)) for r in requests]
+        return [self._select(r) for r in requests]
 
-    def _select(self, req: DecisionRequest) -> str:
+    def _select(self, req: DecisionRequest) -> Decision:
         current = req.states[0].repertoire
         if current == Queueing.name:
             return self._from_queueing(req)
         if current == Overtaking.name:
-            return self._from_overtaking(req)
-        return current
+            return Decision(req.unit_id, (self._from_overtaking(req),))
+        return Decision(req.unit_id, (current,))
 
-    def _from_queueing(self, req: DecisionRequest) -> str:
+    def _from_queueing(self, req: DecisionRequest) -> Decision:
         obs, state = req.observations[0], req.states[0]
-        if self._stalled_with_gap(obs, state) or self._passed_often(obs):
-            return Overtaking.name
-        return Queueing.name
+        if not (self._stalled(obs) or self._passed_often(obs)):
+            return Decision(req.unit_id, (Queueing.name,))
+        if not self._gap_exists(obs, state):
+            return Decision(req.unit_id, (Queueing.name,), (WITHHELD_NO_GAP,))
+        return Decision(req.unit_id, (Overtaking.name,))
 
     @staticmethod
     def _from_overtaking(req: DecisionRequest) -> str:
-        finished = {"overtake_completed", "overtake_abandoned"}
-        if finished.intersection(req.events):
-            return Queueing.name
-        return Overtaking.name
+        finished = any(
+            e == "overtake_completed" or e.startswith("overtake_abandoned")
+            for e in req.events
+        )
+        return Queueing.name if finished else Overtaking.name
 
-    def _stalled_with_gap(
-        self, obs: Observation, state: BehaviouralState
-    ) -> bool:
+    def _stalled(self, obs: Observation) -> bool:
         gained = progress_gained(obs.memory, obs.time, self._rules.t_stall)
-        if gained >= self._rules.stall_progress:
-            return False
+        return gained < self._rules.stall_progress
+
+    def _gap_exists(self, obs: Observation, state: BehaviouralState) -> bool:
         anchor = next((p for p in obs.perceived if p.id == state.anchor), None)
         if anchor is None:
             return False

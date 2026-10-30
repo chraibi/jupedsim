@@ -66,9 +66,9 @@ def test_all_agents_reach_entrance(rules_run):
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "Milestone-1 rules: no overtake returns to queueing with "
-        "CollisionFreeSpeedModel; awaiting maintainer decision on rules "
-        "4(b)/6"
+        "Milestone-1 rules with CollisionFreeSpeedModel: the only overtake "
+        "starts near the entrance and ends by handoff, so no agent "
+        "returns to queueing"
     ),
 )
 def test_rules_produce_queueing_and_overtaking(rules_run):
@@ -112,8 +112,8 @@ def normalised(path, ids):
 
 
 def test_replay_reproduces_transitions(tmp_path):
-    # CollisionFreeSpeedModelV3 gives many transitions under the rules,
-    # so the comparison below covers queueing and overtaking alike.
+    # CollisionFreeSpeedModelV3 gives transitions both ways under the
+    # rules, so the comparison below covers queueing and overtaking alike.
     log_a = tmp_path / "rules.jsonl"
     _, ids_a = run_scenario(
         jps.CollisionFreeSpeedModelV3(), rule_selector(), log_a
@@ -129,7 +129,8 @@ def test_replay_reproduces_transitions(tmp_path):
         meta_b["model"],
     )
     expected = normalised(log_a, ids_a)
-    assert sum(len(records) for records in expected.values()) > 10
+    afters = {r["after"] for records in expected.values() for r in records}
+    assert afters == {"queueing", "overtaking"}
     assert normalised(log_b, ids_b) == expected
 
 

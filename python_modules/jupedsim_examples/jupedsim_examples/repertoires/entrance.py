@@ -17,6 +17,11 @@ from jupedsim.repertoires.perception import progress_gained
 
 Point = tuple[float, float]
 
+# Events an overtake ends with; each abandonment names its cause.
+ABANDONED_NO_GAP = "overtake_abandoned_no_gap"
+ABANDONED_TARGET_LOST = "overtake_abandoned_target_lost"
+ABANDONED_STALLED = "overtake_abandoned_stalled"
+
 
 @dataclasses.dataclass(frozen=True)
 class EntranceParameters:
@@ -268,11 +273,11 @@ class Overtaking:
             return handoff
         target = _find(obs, state.anchor)
         if target is None:
-            return self._abandon(obs, state)
+            return self._abandon(obs, state, ABANDONED_TARGET_LOST)
         if obs.progress > target.progress + self._params.complete_margin:
             return self._complete(state)
         if self._stalled(obs, state):
-            return self._abandon(obs, state)
+            return self._abandon(obs, state, ABANDONED_STALLED)
         if state.phase == 1:
             return self._lateral(obs, state, target)
         return self._pass(state, target)
@@ -294,7 +299,7 @@ class Overtaking:
             self._params, self._walkable, obs.position, target, obs.perceived
         )
         if point is None:
-            return self._abandon(obs, state)
+            return self._abandon(obs, state, ABANDONED_NO_GAP)
         if math.dist(obs.position, point) < self._params.lateral_reach:
             return self._pass(dataclasses.replace(state, phase=2), target)
         return self._command(dataclasses.replace(state, target=point))
@@ -325,7 +330,9 @@ class Overtaking:
             event="overtake_completed",
         )
 
-    def _abandon(self, obs: Observation, state: BehaviouralState) -> Command:
+    def _abandon(
+        self, obs: Observation, state: BehaviouralState, reason: str
+    ) -> Command:
         return Command(
             target=obs.position,
             desired_speed=self._params.queue_speed,
@@ -333,5 +340,5 @@ class Overtaking:
             state=dataclasses.replace(
                 state, execution="standing", target=obs.position
             ),
-            event="overtake_abandoned",
+            event=reason,
         )

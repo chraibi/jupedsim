@@ -196,11 +196,11 @@ def test_overtake_completes_past_target():
 def test_overtake_abandons_when_target_lost():
     ot = Overtaking(PARAMS, WALKABLE)
     cmd = ot.control(obs((14, 5), []), overtaking_state())
-    assert cmd.event == "overtake_abandoned"
+    assert cmd.event == "overtake_abandoned_target_lost"
     assert cmd.target == (14, 5)
     assert cmd.execution == "standing"
     cmd = ot.control(obs((14, 5), []), overtaking_state(anchor=None))
-    assert cmd.event == "overtake_abandoned"
+    assert cmd.event == "overtake_abandoned_target_lost"
 
 
 def test_overtake_abandons_when_stalled():
@@ -208,7 +208,7 @@ def test_overtake_abandons_when_stalled():
     mem = Memory(((8.0, -6.0), (9.0, -6.0), (10.0, -6.0)), (), False)
     o = obs((14.0, 5.3), [(1, (15, 5))], time=10.0, memory=mem)
     cmd = ot.control(o, overtaking_state(commitment_since=8.0))
-    assert cmd.event == "overtake_abandoned"
+    assert cmd.event == "overtake_abandoned_stalled"
     young = ot.control(o, overtaking_state(commitment_since=9.0))
     assert young.event is None
 
@@ -216,4 +216,5 @@ def test_overtake_abandons_when_stalled():
 def test_overtake_abandons_without_feasible_point():
     ot = Overtaking(PARAMS, WALKABLE)
     o = obs((14, 5.3), [(1, (15, 5)), (2, (15, 5.8)), (3, (15, 4.2))])
-    assert ot.control(o, overtaking_state()).event == "overtake_abandoned"
+    event = ot.control(o, overtaking_state()).event
+    assert event == "overtake_abandoned_no_gap"
