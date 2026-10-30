@@ -139,9 +139,12 @@ class RepertoireController:
             repertoire: Name of the initial repertoire.
 
         Raises:
-            ValueError: If the repertoire is unknown or the agent is not
-                in the steering journey.
+            ValueError: If the agent is already controlled, the
+                repertoire is unknown or the agent is not in the steering
+                journey.
         """
+        if agent_id in self._states:
+            raise ValueError(f"agent {agent_id} is already controlled")
         if repertoire not in self._repertoires:
             raise ValueError(f"unknown repertoire {repertoire!r}")
         agent = self._sim.agent(agent_id)

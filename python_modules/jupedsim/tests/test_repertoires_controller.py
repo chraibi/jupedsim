@@ -326,3 +326,15 @@ def test_handoff_is_logged_with_active_repertoire(tmp_path):
             "repertoire": "a",
         }
     ]
+
+
+def test_adding_controlled_agent_twice_raises(tmp_path):
+    sim, room, ids = make_sim()
+    (agent_id,) = add_agents(sim, room, ids, [(2.0, 5.0)])
+    with RunLog(tmp_path / "log.jsonl", {}) as log:
+        ctrl = make_controller(
+            sim, ids, [StubRepertoire("a")], SwapSelector(), log
+        )
+        ctrl.add(agent_id, "a")
+        with pytest.raises(ValueError, match="already controlled"):
+            ctrl.add(agent_id, "a")
