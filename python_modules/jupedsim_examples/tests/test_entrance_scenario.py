@@ -2,6 +2,7 @@
 import dataclasses
 import json
 
+import h5py
 import jupedsim as jps
 import pytest
 from jupedsim.repertoires import FixedSelector, ReplaySelector
@@ -196,3 +197,34 @@ def test_memory_window_must_cover_queried_spans(selector, entrance, tmp_path):
             log_path=tmp_path / "log.jsonl",
             entrance=entrance,
         )
+
+
+def test_trajectories_are_written_when_requested(tmp_path):
+    trajectory = tmp_path / "trajectory.h5"
+    sim, controller = build_entrance(
+        jps.CollisionFreeSpeedModelV3(),
+        n_agents=5,
+        seed=SEED,
+        selector=FixedSelector(),
+        log_path=tmp_path / "log.jsonl",
+        trajectory_path=trajectory,
+        every_nth_frame=10,
+    )
+    ids = set(controller.states)
+    run(sim, controller, 5.0)
+    with h5py.File(trajectory, "r") as f:
+        rows = f["trajectory"][:]
+    assert set(rows["id"].tolist()) == ids
+    assert len(set(rows["frame"].tolist())) == 51
+
+
+def test_no_trajectory_file_by_default(tmp_path):
+    sim, controller = build_entrance(
+        jps.CollisionFreeSpeedModelV3(),
+        n_agents=5,
+        seed=SEED,
+        selector=FixedSelector(),
+        log_path=tmp_path / "log.jsonl",
+    )
+    run(sim, controller, 1.0)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["log.jsonl"]

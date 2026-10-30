@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--agents", type=int, default=30)
     parser.add_argument("--max-time", type=float, default=120.0)
+    parser.add_argument(
+        "--trajectory",
+        type=pathlib.Path,
+        help="HDF5 trajectory file to write (default: none)",
+    )
+    parser.add_argument("--every-nth-frame", type=int, default=4)
     args = parser.parse_args()
     if args.selector == "replay" and args.replay_from is None:
         parser.error("--selector replay requires --replay-from")
@@ -72,11 +78,14 @@ def main() -> None:
         seed=args.seed,
         selector=make_selector(args),
         log_path=args.log,
+        trajectory_path=args.trajectory,
+        every_nth_frame=args.every_nth_frame,
     )
     run(sim, controller, args.max_time)
     print(
         f"t={sim.elapsed_time():.2f} s, "
         f"{sim.agent_count()} agents remaining, log: {args.log}"
+        + (f", trajectory: {args.trajectory}" if args.trajectory else "")
     )
     print_timeline(args.log)
 

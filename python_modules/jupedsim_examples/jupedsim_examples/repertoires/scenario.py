@@ -49,6 +49,9 @@ _LOGS: "weakref.WeakKeyDictionary[RepertoireController, RunLog]" = (
     weakref.WeakKeyDictionary()
 )
 
+# Trajectory writer of each controller built with one, closed by ``run``.
+_WRITERS: "weakref.WeakKeyDictionary[RepertoireController, jps.Hdf5TrajectoryWriter]" = weakref.WeakKeyDictionary()
+
 
 def walkable_area() -> shapely.Polygon:
     """Approach area and entrance corridor as one polygon."""
@@ -92,6 +95,8 @@ def build_entrance(
     entrance: EntranceParameters = EntranceParameters(),
     control_interval: int = 10,
     decision_period: float = 2.0,
+    trajectory_path: pathlib.Path | None = None,
+    every_nth_frame: int = 4,
 ) -> tuple[jps.Simulation, RepertoireController]:
     """Build the entrance scenario with all agents queueing.
 
@@ -104,6 +109,9 @@ def build_entrance(
         entrance: Parameters of the repertoires.
         control_interval: Iterations per controller step.
         decision_period: Seconds between periodic decisions of an agent.
+        trajectory_path: HDF5 trajectory file to write, or None for none;
+            closed by :func:`run`. Agent ids match those in the run log.
+        every_nth_frame: Iterations between recorded trajectory frames.
 
     Returns:
         The simulation and the controller driving its agents.
@@ -118,7 +126,14 @@ def build_entrance(
     walkable = walkable_area()
     surface = jps.WalkableSurface()
     region = surface.add_region(polygon=walkable)
-    sim = jps.Simulation(model=model, geometry=surface, dt=_DT)
+    writer = None
+    if trajectory_path is not None:
+        writer = jps.Hdf5TrajectoryWriter(
+            output_file=trajectory_path, every_nth_frame=every_nth_frame
+        )
+    sim = jps.Simulation(
+        model=model, geometry=surface, dt=_DT, trajectory_writer=writer
+    )
     steering = sim.add_direct_steering_stage()
     steering_journey = sim.add_journey(jps.JourneyDescription([steering]))
     exit_stage = sim.add_exit_stage([(_EXIT, region)])
@@ -182,6 +197,8 @@ def build_entrance(
     for agent_id in ids:
         controller.add(agent_id, Queueing.name)
     _LOGS[controller] = log
+    if writer is not None:
+        _WRITERS[controller] = writer
     return sim, controller
 
 
@@ -190,12 +207,17 @@ def run(
 ) -> None:
     """Step the controller until all agents left or ``max_time`` passed.
 
-    The run log is closed at the end.
+    The run log and the trajectory file, if any, are closed at the end;
+    the simulation stays usable for inspection.
     """
     try:
         while sim.agent_count() > 0 and sim.elapsed_time() < max_time:
             controller.step()
     finally:
-        log = _LOGS.pop(controller, None)
-        if log is not None:
-            log.close()
+        _close(_LOGS.pop(controller, None))
+        _close(_WRITERS.pop(controller, None))
+
+
+def _close(resource) -> None:
+    if resource is not None:
+        resource.close()
