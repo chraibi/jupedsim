@@ -228,13 +228,24 @@ class RepertoireController:
 
     def _observe_agent(self, agent_id: int, now: float) -> Observation:
         obs = self._perception.observe(
-            self._sim, agent_id, now, self._memories[agent_id]
+            self._sim,
+            agent_id,
+            now,
+            self._memories[agent_id],
+            tracked=self._tracked(agent_id),
         )
         memory = self._memory.update(agent_id, now, obs.progress, obs.perceived)
         self._memories[agent_id] = memory
         obs = dataclasses.replace(obs, memory=memory)
         self._log.observation(obs)
         return obs
+
+    def _tracked(self, agent_id: int) -> int | None:
+        state = self._states[agent_id]
+        repertoire = self._repertoires[state.repertoire]
+        if not getattr(repertoire, "tracks_anchor", False):
+            return None
+        return state.anchor
 
     def _enter_new(self, observations: Mapping[int, Observation]) -> None:
         for agent_id in sorted(set(self._states) - self._entered):

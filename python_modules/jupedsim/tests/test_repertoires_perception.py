@@ -111,3 +111,36 @@ def test_view_cone_excludes_agents_behind():
     assert [p.id for p in obs.perceived] == [ids[2]]
     assert obs.progress == pytest.approx(5.0)
     assert obs.perceived[0].progress == pytest.approx(6.0)
+
+
+def test_tracked_agent_is_perceived_outside_view_cone():
+    surface = jps.WalkableSurface()
+    room = surface.add_region(boundary=[(0, 0), (10, 0), (10, 10), (0, 10)])
+    sim = jps.Simulation(
+        model=jps.CollisionFreeSpeedModel(), geometry=surface, dt=0.01
+    )
+    steering = sim.add_direct_steering_stage()
+    journey = sim.add_journey(jps.JourneyDescription([steering]))
+    own, tracked, other, far = [
+        sim.add_agent(
+            journey_id=journey,
+            stage_id=steering,
+            position=pos,
+            state=jps.CollisionFreeSpeedModelState(),
+            region_id=room,
+        )
+        for pos in [(5.0, 5.0), (4.0, 5.0), (4.0, 6.0), (1.0, 5.0)]
+    ]
+    perception = Perception(
+        progress=lambda pos: pos[0],
+        radius=3.0,
+        half_angle_deg=90.0,
+        heading=lambda pos: (1.0, 0.0),
+    )
+    mem = Memory((), (), False)
+    obs = perception.observe(sim, own, 0.0, mem, tracked=tracked)
+    assert [p.id for p in obs.perceived] == [tracked]
+    assert perception.observe(sim, own, 0.0, mem).perceived == ()
+    beyond = perception.observe(sim, own, 0.0, mem, tracked=far)
+    assert beyond.perceived == ()
+    assert other not in [p.id for p in obs.perceived]

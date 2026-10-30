@@ -337,6 +337,44 @@ def test_handoff_is_logged_with_active_repertoire(tmp_path):
     ]
 
 
+class AnchoredRepertoire(StubRepertoire):
+    """Stub that anchors on a given agent and records what it perceives."""
+
+    def __init__(self, name, anchor, tracks_anchor):
+        super().__init__(name)
+        self.anchor = anchor
+        self.tracks_anchor = tracks_anchor
+        self.perceived = []
+
+    def enter(self, obs, state):
+        return dataclasses.replace(
+            super().enter(obs, state), anchor=self.anchor
+        )
+
+    def control(self, obs, state):
+        self.perceived.append([p.id for p in obs.perceived])
+        return super().control(obs, state)
+
+
+@pytest.mark.parametrize("tracks_anchor", [True, False])
+def test_only_tracking_repertoires_perceive_anchor_behind(
+    tmp_path, tracks_anchor
+):
+    sim, room, ids = make_sim()
+    own, anchor, other = add_agents(
+        sim, room, ids, [(5.0, 5.0), (4.0, 5.0), (4.0, 7.0)]
+    )
+    rep = AnchoredRepertoire("a", anchor, tracks_anchor)
+    with RunLog(tmp_path / "log.jsonl", {}) as log:
+        ctrl = make_controller(sim, ids, [rep], FixedSelector(), log)
+        ctrl.add(own, "a")
+        ctrl.step()
+        ctrl.step()
+    expected = [anchor] if tracks_anchor else []
+    assert rep.perceived[-1] == expected
+    assert other not in rep.perceived[-1]
+
+
 def test_adding_controlled_agent_twice_raises(tmp_path):
     sim, room, ids = make_sim()
     (agent_id,) = add_agents(sim, room, ids, [(2.0, 5.0)])

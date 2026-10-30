@@ -3,6 +3,7 @@
 import dataclasses
 import math
 
+import jupedsim as jps
 import pytest
 import shapely
 from jupedsim.repertoires import (
@@ -11,6 +12,7 @@ from jupedsim.repertoires import (
     Observation,
     PerceivedAgent,
 )
+from jupedsim.repertoires.perception import Perception
 from jupedsim_examples.repertoires import (
     EntranceParameters,
     Overtaking,
@@ -19,6 +21,7 @@ from jupedsim_examples.repertoires import (
     passing_point,
     progress,
 )
+from jupedsim_examples.repertoires.entrance import ABANDONED_TARGET_LOST
 
 PARAMS = EntranceParameters()
 WALKABLE = shapely.Polygon([(0, 0), (20, 0), (20, 10), (0, 10)])
@@ -228,3 +231,71 @@ def test_overtake_abandons_without_feasible_point():
     o = obs((14, 5.3), [(1, (15, 5)), (2, (15, 5.8)), (3, (15, 4.2))])
     event = ot.control(o, overtaking_state()).event
     assert event == "overtake_abandoned_no_gap"
+
+
+def test_only_overtaking_tracks_its_anchor():
+    assert Overtaking.tracks_anchor
+    assert not getattr(Queueing, "tracks_anchor", False)
+
+
+def perceived_by(own_pos, target_pos, tracked):
+    """Observation of an agent at ``own_pos`` by the scenario's perception."""
+    surface = jps.WalkableSurface()
+    region = surface.add_region(polygon=WALKABLE)
+    sim = jps.Simulation(
+        model=jps.CollisionFreeSpeedModelV3(), geometry=surface, dt=0.01
+    )
+    steering = sim.add_direct_steering_stage()
+    journey = sim.add_journey(jps.JourneyDescription([steering]))
+    own, target = [
+        sim.add_agent(
+            journey_id=journey,
+            stage_id=steering,
+            position=pos,
+            state=jps.CollisionFreeSpeedModelV3State(),
+            region_id=region,
+        )
+        for pos in (own_pos, target_pos)
+    ]
+    perception = Perception(
+        progress=progress(PARAMS),
+        heading=heading(PARAMS),
+        radius=4.0,
+        half_angle_deg=90.0,
+    )
+    tracked_id = target if tracked else None
+    return perception.observe(sim, own, 10.0, EMPTY, tracked=tracked_id), target
+
+
+def test_passing_tracked_target_completes_overtake():
+    o, target = perceived_by((12.0, 5.0), (11.0, 4.2), tracked=True)
+    cmd = Overtaking(PARAMS, WALKABLE).control(
+        o, overtaking_state(anchor=target, phase=2)
+    )
+    assert cmd.event == "overtake_completed"
+
+
+def test_passed_target_is_lost_without_tracking():
+    o, target = perceived_by((12.0, 5.0), (11.0, 4.2), tracked=False)
+    cmd = Overtaking(PARAMS, WALKABLE).control(
+        o, overtaking_state(anchor=target, phase=2)
+    )
+    assert cmd.event == ABANDONED_TARGET_LOST
+
+
+def test_target_lost_before_margin_is_not_completion():
+    o, target = perceived_by((12.0, 5.0), (12.1, 6.0), tracked=True)
+    lost = dataclasses.replace(o, perceived=())
+    cmd = Overtaking(PARAMS, WALKABLE).control(
+        lost, overtaking_state(anchor=target, phase=2)
+    )
+    assert cmd.event == ABANDONED_TARGET_LOST
+
+
+def test_tracked_target_beyond_range_is_lost():
+    o, target = perceived_by((12.0, 5.0), (7.5, 5.0), tracked=True)
+    assert o.perceived == ()
+    cmd = Overtaking(PARAMS, WALKABLE).control(
+        o, overtaking_state(anchor=target, phase=2)
+    )
+    assert cmd.event == ABANDONED_TARGET_LOST

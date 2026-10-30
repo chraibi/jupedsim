@@ -145,7 +145,12 @@ class Command:
 
 
 class Repertoire(typing.Protocol):
-    """A named behaviour that turns observations into commands."""
+    """A named behaviour that turns observations into commands.
+
+    A repertoire may set ``tracks_anchor = True``; its agents then keep
+    perceiving their anchor within the perception range, even outside
+    the view cone.
+    """
 
     name: str
     requires: frozenset[Capability]

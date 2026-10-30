@@ -250,10 +250,15 @@ class Queueing:
 
 
 class Overtaking:
-    """Pass the predecessor on a lateral point, then rejoin ahead of it."""
+    """Pass the predecessor on a lateral point, then rejoin ahead of it.
+
+    The agent keeps track of the agent it passes within the perception
+    range, also once that agent is outside its view cone.
+    """
 
     name = "overtaking"
     requires = frozenset({Capability.TARGET_CONTROL, Capability.DESIRED_SPEED})
+    tracks_anchor = True
 
     def __init__(self, params: EntranceParameters, walkable: shapely.Polygon):
         self._params = params

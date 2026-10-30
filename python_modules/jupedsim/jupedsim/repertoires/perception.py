@@ -30,7 +30,12 @@ class Perception:
         self._heading = heading
 
     def observe(
-        self, sim, agent_id: int, time: float, memory: Memory
+        self,
+        sim,
+        agent_id: int,
+        time: float,
+        memory: Memory,
+        tracked: int | None = None,
     ) -> Observation:
         """Observe the surroundings of one agent.
 
@@ -39,6 +44,8 @@ class Perception:
             agent_id: Id of the observing agent.
             time: Current simulation time.
             memory: Memory of the observing agent.
+            tracked: Agent the observer keeps track of; it is perceived
+                within the perception range even outside the view cone.
 
         Returns:
             The agent's observation. Perceived agents are sorted by id.
@@ -53,7 +60,10 @@ class Perception:
             )
             for other in sim.agents_in_range(own, self._radius)
             if other.id != agent_id
-            and self._in_cone(own, heading, tuple(other.position))
+            and (
+                other.id == tracked
+                or self._in_cone(own, heading, tuple(other.position))
+            )
         ]
         perceived.sort(key=lambda p: p.id)
         return Observation(
