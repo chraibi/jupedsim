@@ -35,30 +35,8 @@ def make_sim():
     return sim, room, (steering_journey, steering, exit_journey, exit_stage)
 
 
-def align_agent_ids():
-    """Make the next agent id end in 1.
-
-    Agent ids are global across simulations and set each unit's phase
-    offset ``(unit_id % 10) / 10 * decision_period``. Burning ids in a
-    separate simulation gives the first agent of every test the same
-    offset, 0.1 s, whatever ran before.
-    """
-    sim, room, (journey, stage, _, _) = make_sim()
-    for k in range(10):
-        agent_id = sim.add_agent(
-            journey_id=journey,
-            stage_id=stage,
-            position=(0.5 + k, 0.5),
-            state=jps.CollisionFreeSpeedModelState(),
-            region_id=room,
-        )
-        if agent_id % 10 == 0:
-            return
-
-
 def add_agents(sim, room, ids, positions):
     steering_journey, steering, _, _ = ids
-    align_agent_ids()
     return [
         sim.add_agent(
             journey_id=steering_journey,

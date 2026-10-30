@@ -59,6 +59,13 @@ class RepertoireController:
     Agents and units are processed in ascending id order, so results do
     not depend on the order in which agents were added.
 
+    Each unit gets a run-relative index, from 0, when it first enters a
+    repertoire; units entering in the same step are indexed in ascending
+    id order. The index sets the unit's phase offset
+    ``(index % 10) / 10 * decision_period`` and is passed to the selector
+    as ``DecisionRequest.unit_index``, so results do not depend on the
+    global agent ids.
+
     Args:
         sim: The simulation.
         repertoires: Repertoires by name.
@@ -123,6 +130,8 @@ class RepertoireController:
         self._pending: dict[int, str | None] = {}
         self._next_due: dict[int, float] = {}
         self._decision_index: dict[int, int] = {}
+        self._unit_index: dict[int, int] = {}
+        self._next_unit_index = 0
 
     @property
     def states(self) -> Mapping[int, BehaviouralState]:
@@ -133,6 +142,7 @@ class RepertoireController:
         """Put an agent under control of the layer.
 
         The agent forms its own decision unit with ``unit_id = agent_id``.
+        Its run-relative unit index is assigned at the next :meth:`step`.
 
         Args:
             agent_id: Agent already following the steering journey.
@@ -162,7 +172,6 @@ class RepertoireController:
         )
         self._memories[agent_id] = _EMPTY_MEMORY
         self._pending[agent_id] = None
-        self._next_due[agent_id] = (agent_id % 10) / 10 * self._decision_period
         self._decision_index[agent_id] = 0
 
     def step(self) -> None:
@@ -206,6 +215,7 @@ class RepertoireController:
             self._pending,
             self._next_due,
             self._decision_index,
+            self._unit_index,
         ):
             table.pop(agent_id, None)
         self._entered.discard(agent_id)
@@ -234,6 +244,13 @@ class RepertoireController:
                 observations[agent_id], state
             )
             self._entered.add(agent_id)
+            self._assign_index(agent_id)
+
+    def _assign_index(self, unit_id: int) -> None:
+        index = self._next_unit_index
+        self._next_unit_index += 1
+        self._unit_index[unit_id] = index
+        self._next_due[unit_id] = (index % 10) / 10 * self._decision_period
 
     def _collect_requests(
         self, observations: Mapping[int, Observation], now: float
@@ -260,6 +277,7 @@ class RepertoireController:
             observations=(obs,),
             states=(self._states[unit_id],),
             events=events,
+            unit_index=self._unit_index[unit_id],
         )
         self._decision_index[unit_id] += 1
         self._log.request(request)
@@ -300,7 +318,10 @@ class RepertoireController:
         by_unit = {dec.unit_id: dec for dec in decisions}
         for req in requests:
             self._log.response(
-                by_unit[req.unit_id], req.decision_index, req.snapshot_time
+                by_unit[req.unit_id],
+                req.decision_index,
+                req.snapshot_time,
+                unit_index=req.unit_index,
             )
         return by_unit
 

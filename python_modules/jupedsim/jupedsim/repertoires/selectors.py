@@ -28,13 +28,16 @@ class ReplaySelector:
     """Answers requests from the responses recorded in a run log."""
 
     def __init__(self, path: pathlib.Path):
-        """Index the logged responses.
+        """Index the logged responses by unit index and decision index.
+
+        Keys use the run-relative unit index, so a log can be replayed in
+        a simulation whose agent ids differ.
 
         Args:
             path: Log file written by ``RunLog``.
         """
         self._responses = {
-            (r["unit_id"], r["decision_index"]): tuple(r["repertoires"])
+            (r["unit_index"], r["decision_index"]): tuple(r["repertoires"])
             for r in load_records(path)
             if r["type"] == "response"
         }
@@ -48,10 +51,10 @@ class ReplaySelector:
         return [self._lookup(req) for req in requests]
 
     def _lookup(self, req: DecisionRequest) -> Decision:
-        key = (req.unit_id, req.decision_index)
+        key = (req.unit_index, req.decision_index)
         if key not in self._responses:
             raise SelectorError(
-                f"no logged response for unit {req.unit_id}, "
+                f"no logged response for unit index {req.unit_index}, "
                 f"decision {req.decision_index}"
             )
         return Decision(req.unit_id, self._responses[key])

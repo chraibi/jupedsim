@@ -24,7 +24,9 @@ def _state(repertoire: str, unit_id: int) -> BehaviouralState:
     )
 
 
-def _request(unit_id: int, index: int = 0, repertoire: str = "a"):
+def _request(
+    unit_id: int, index: int = 0, repertoire: str = "a", unit_index=None
+):
     return DecisionRequest(
         unit_id=unit_id,
         members=(unit_id,),
@@ -33,6 +35,7 @@ def _request(unit_id: int, index: int = 0, repertoire: str = "a"):
         observations=(),
         states=(_state(repertoire, unit_id),),
         events=(),
+        unit_index=unit_id if unit_index is None else unit_index,
     )
 
 
@@ -45,18 +48,26 @@ def test_fixed_selector_keeps_repertoire():
 def test_replay_returns_logged_decision(tmp_path):
     path = tmp_path / "log.jsonl"
     with RunLog(path, {}) as log:
-        log.response(Decision(1, ("b",)), 0, 0.0)
-        log.response(Decision(1, ("c",)), 1, 1.0)
-        log.response(Decision(2, ("d",)), 0, 0.0)
+        log.response(Decision(1, ("b",)), 0, 0.0, unit_index=1)
+        log.response(Decision(1, ("c",)), 1, 1.0, unit_index=1)
+        log.response(Decision(2, ("d",)), 0, 0.0, unit_index=2)
     selector = ReplaySelector(path)
     decisions = selector.decide([_request(2, 0), _request(1, 1)])
     assert decisions == [Decision(2, ("d",)), Decision(1, ("c",))]
 
 
+def test_replay_matches_on_unit_index(tmp_path):
+    path = tmp_path / "log.jsonl"
+    with RunLog(path, {}) as log:
+        log.response(Decision(101, ("b",)), 0, 0.0, unit_index=0)
+    decisions = ReplaySelector(path).decide([_request(7, 0, unit_index=0)])
+    assert decisions == [Decision(7, ("b",))]
+
+
 def test_replay_missing_entry_raises(tmp_path):
     path = tmp_path / "log.jsonl"
     with RunLog(path, {}) as log:
-        log.response(Decision(1, ("b",)), 0, 0.0)
+        log.response(Decision(1, ("b",)), 0, 0.0, unit_index=1)
     with pytest.raises(SelectorError):
         ReplaySelector(path).decide([_request(1, 5)])
 

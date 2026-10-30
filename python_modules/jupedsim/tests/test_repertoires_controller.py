@@ -9,6 +9,7 @@ from jupedsim.repertoires import (
     Capability,
     Command,
     Decision,
+    FixedSelector,
     RepertoireController,
     SelectorError,
     model_capabilities,
@@ -95,30 +96,8 @@ def make_sim():
     return sim, room, (steering_journey, steering, exit_journey, exit_stage)
 
 
-def align_agent_ids():
-    """Make the next agent id end in 1.
-
-    Agent ids are global across simulations and set each unit's phase
-    offset ``(unit_id % 10) / 10 * decision_period``. Burning ids in a
-    separate simulation gives the first agent of every test the same
-    offset, 0.1 s, whatever ran before.
-    """
-    sim, room, (journey, stage, _, _) = make_sim()
-    for k in range(10):
-        agent_id = sim.add_agent(
-            journey_id=journey,
-            stage_id=stage,
-            position=(0.5 + k, 0.5),
-            state=jps.CollisionFreeSpeedModelState(),
-            region_id=room,
-        )
-        if agent_id % 10 == 0:
-            return
-
-
 def add_agents(sim, room, ids, positions):
     steering_journey, steering, _, _ = ids
-    align_agent_ids()
     return [
         sim.add_agent(
             journey_id=steering_journey,
@@ -188,7 +167,7 @@ def relabel(record, first):
 def run_swaps(path, order):
     sim, room, ids = make_sim()
     agents = add_agents(sim, room, ids, POSITIONS)
-    # Every unit is due every cycle, so phase offsets of ids do not matter.
+    # Unit indices follow ascending ids, whatever the order of ``add``.
     reps = [
         StubRepertoire("a", event="tick"),
         StubRepertoire("b", event="tock"),
@@ -204,6 +183,37 @@ def run_swaps(path, order):
         for r in load_records(path)
         if r["type"] in ("transition", "response")
     ]
+
+
+def burn_ids(count):
+    """Add agents to a separate simulation to advance the global ids."""
+    sim, room, ids = make_sim()
+    add_agents(sim, room, ids, [(0.5 + k, 0.5) for k in range(count)])
+
+
+def periodic_schedule(path, burned):
+    burn_ids(burned)
+    sim, room, ids = make_sim()
+    agents = add_agents(sim, room, ids, POSITIONS)
+    selector = SwapSelector(sim)
+    reps = [StubRepertoire("a"), StubRepertoire("b")]
+    with RunLog(path, {}) as log:
+        ctrl = make_controller(sim, ids, reps, selector, log)
+        for agent_id in agents:
+            ctrl.add(agent_id, "a")
+        for _ in range(30):
+            ctrl.step()
+    return [
+        (round(now, 6), [(r.unit_index, r.decision_index) for r in reqs])
+        for now, reqs in selector.calls
+    ]
+
+
+def test_schedule_does_not_depend_on_global_agent_ids(tmp_path):
+    first = periodic_schedule(tmp_path / "a.jsonl", 0)
+    second = periodic_schedule(tmp_path / "b.jsonl", 3)
+    assert first[0] == (0.0, [(0, 0)])
+    assert first == second
 
 
 def test_registration_order_does_not_change_log(tmp_path):
@@ -266,7 +276,7 @@ def test_unwalkable_target_holds_position(tmp_path):
     reps = [StubRepertoire("a", target=(20.0, 20.0))]
     path = tmp_path / "log.jsonl"
     with RunLog(path, {}) as log:
-        ctrl = make_controller(sim, ids, reps, SwapSelector(), log)
+        ctrl = make_controller(sim, ids, reps, FixedSelector(), log)
         ctrl.add(agent_id, "a")
         ctrl.step()
     target = sim.agent(agent_id).final_target
@@ -283,7 +293,6 @@ def violation_raises(tmp_path, selector):
     with RunLog(tmp_path / "log.jsonl", {}) as log:
         ctrl = make_controller(sim, ids, reps, selector, log)
         ctrl.add(agent_id, "a")
-        ctrl.step()
         before = sim.iteration_count()
         with pytest.raises(SelectorError):
             ctrl.step()
@@ -300,7 +309,7 @@ def test_handoff_switches_to_exit_journey(tmp_path):
     (agent_id,) = add_agents(sim, room, ids, [(2.0, 5.0)])
     reps = [StubRepertoire("a", handoff=True)]
     with RunLog(tmp_path / "log.jsonl", {}) as log:
-        ctrl = make_controller(sim, ids, reps, SwapSelector(), log)
+        ctrl = make_controller(sim, ids, reps, FixedSelector(), log)
         ctrl.add(agent_id, "a")
         ctrl.step()
     assert sim.agent(agent_id).journey_id == ids[2]
@@ -313,7 +322,7 @@ def test_handoff_is_logged_with_active_repertoire(tmp_path):
     reps = [StubRepertoire("a", handoff=True)]
     path = tmp_path / "log.jsonl"
     with RunLog(path, {}) as log:
-        ctrl = make_controller(sim, ids, reps, SwapSelector(), log)
+        ctrl = make_controller(sim, ids, reps, FixedSelector(), log)
         ctrl.add(agent_id, "a")
         ctrl.step()
     handoffs = [r for r in load_records(path) if r["type"] == "handoff"]

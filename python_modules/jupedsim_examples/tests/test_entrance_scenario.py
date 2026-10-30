@@ -4,7 +4,6 @@ import json
 
 import jupedsim as jps
 import pytest
-import shapely
 from jupedsim.repertoires import FixedSelector, ReplaySelector
 from jupedsim.repertoires.log import load_records, transitions_by_agent
 from jupedsim_examples.repertoires import (
@@ -23,45 +22,13 @@ SEED = 1
 MAX_TIME = 120.0
 
 
-def align_agent_ids() -> int:
-    """Make the next agent id end in 1.
-
-    Agent ids are global across simulations and set each unit's phase
-    offset ``(unit_id % 10) / 10 * decision_period``. Burning ids in a
-    separate simulation gives runs compared with each other the same
-    phase offsets.
-
-    Returns:
-        The next agent id.
-    """
-    surface = jps.WalkableSurface()
-    room = surface.add_region(polygon=shapely.box(0, 0, 20, 2))
-    sim = jps.Simulation(
-        model=jps.CollisionFreeSpeedModel(), geometry=surface, dt=0.01
-    )
-    steering = sim.add_direct_steering_stage()
-    journey = sim.add_journey(jps.JourneyDescription([steering]))
-    for k in range(10):
-        agent_id = sim.add_agent(
-            journey_id=journey,
-            stage_id=steering,
-            position=(0.5 + k, 0.5),
-            state=jps.CollisionFreeSpeedModelState(),
-            region_id=room,
-        )
-        if agent_id % 10 == 0:
-            return agent_id + 1
-
-
 def rule_selector():
     return EntranceRuleSelector(
         RuleParameters(), EntranceParameters(), walkable_area()
     )
 
 
-def run_scenario(model, selector, log_path, aligned=False):
-    if not aligned:
-        align_agent_ids()
+def run_scenario(model, selector, log_path):
     sim, controller = build_entrance(
         model,
         n_agents=N_AGENTS,
@@ -128,15 +95,6 @@ def test_runs_with_both_movement_models(model, tmp_path):
     assert sim.agent_count() == 0
 
 
-def shift_units(src, dst, offset):
-    """Copy a log, shifting the unit id of every response record."""
-    with open(dst, "w", encoding="utf-8") as file:
-        for record in load_records(src):
-            if record["type"] == "response":
-                record = {**record, "unit_id": record["unit_id"] + offset}
-            file.write(json.dumps(record, sort_keys=True) + "\n")
-
-
 def normalised(path, ids):
     """Transitions keyed and labelled by each agent's order of addition."""
     index = {agent_id: k for k, agent_id in enumerate(ids)}
@@ -160,17 +118,11 @@ def test_replay_reproduces_transitions(tmp_path):
     _, ids_a = run_scenario(
         jps.CollisionFreeSpeedModelV3(), rule_selector(), log_a
     )
-    shifted = tmp_path / "shifted.jsonl"
     log_b = tmp_path / "replay.jsonl"
-    offset = align_agent_ids() - ids_a[0]
-    shift_units(log_a, shifted, offset)
     _, ids_b = run_scenario(
-        jps.CollisionFreeSpeedModelV3(),
-        ReplaySelector(shifted),
-        log_b,
-        aligned=True,
+        jps.CollisionFreeSpeedModelV3(), ReplaySelector(log_a), log_b
     )
-    assert ids_b[0] - ids_a[0] == offset
+    assert ids_b[0] != ids_a[0]
     meta_a, meta_b = load_records(log_a)[0], load_records(log_b)[0]
     assert (meta_a["seed"], meta_a["model"]) == (
         meta_b["seed"],

@@ -59,7 +59,7 @@ def test_requests_and_responses_round_trip(tmp_path):
     with RunLog(path, {}) as log:
         log.observation(req.observations[0])
         log.request(req)
-        log.response(Decision(7, ("a",)), 4, 2.0)
+        log.response(Decision(7, ("a",)), 4, 2.0, unit_index=3)
         log.execution(1.0, 1, "a", "x")
         log.execution(1.5, 1, "a", "x")
         log.execution(2.0, 1, "a", "y")
@@ -81,6 +81,7 @@ def test_requests_and_responses_round_trip(tmp_path):
     assert response["unit_id"] == 7
     assert response["repertoires"] == ["a"]
     assert response["decision_index"] == 4
+    assert response["unit_index"] == 3
     assert response["snapshot_time"] == 2.0
     assert [r["execution"] for r in by_type["execution"]] == ["x", "y"]
     assert by_type["diagnostic"][0]["detail"] == {"ids": [1, 2]}

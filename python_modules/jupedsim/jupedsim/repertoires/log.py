@@ -51,7 +51,12 @@ class RunLog:
         self._write({"type": "request", **dataclasses.asdict(req)})
 
     def response(
-        self, dec: Decision, decision_index: int, snapshot_time: float
+        self,
+        dec: Decision,
+        decision_index: int,
+        snapshot_time: float,
+        *,
+        unit_index: int,
     ) -> None:
         """Log one selector decision with its request coordinates."""
         self._write(
@@ -60,6 +65,7 @@ class RunLog:
                 **dataclasses.asdict(dec),
                 "decision_index": decision_index,
                 "snapshot_time": snapshot_time,
+                "unit_index": unit_index,
             }
         )
 

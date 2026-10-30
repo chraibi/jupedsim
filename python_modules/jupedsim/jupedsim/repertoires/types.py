@@ -92,6 +92,8 @@ class DecisionRequest:
         observations: One observation per member, in member order.
         states: One state per member, in member order.
         events: Events that triggered the decision.
+        unit_index: Run-relative index of the unit, from 0; unlike
+            ``unit_id`` it does not depend on the global agent ids.
     """
 
     unit_id: int
@@ -101,6 +103,7 @@ class DecisionRequest:
     observations: tuple[Observation, ...]
     states: tuple[BehaviouralState, ...]
     events: tuple[str, ...]
+    unit_index: int = -1
 
 
 @dataclasses.dataclass(frozen=True)
