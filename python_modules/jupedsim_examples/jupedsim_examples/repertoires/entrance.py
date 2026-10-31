@@ -52,6 +52,8 @@ class EntranceParameters:
             off (m).
         door_open_time: Time before which no agent is handed off, e.g.
             while the entrance is closed (s).
+        exit_speed: Desired speed set at handoff (m/s), or None to keep
+            the last repertoire speed.
     """
 
     entrance: Point = (20.0, 5.0)
@@ -71,6 +73,7 @@ class EntranceParameters:
     abandon_progress: float = 0.1
     handoff_radius: float = 1.0
     door_open_time: float = 0.0
+    exit_speed: float | None = None
 
 
 def progress(params: EntranceParameters) -> Callable[[Point], float]:
@@ -173,7 +176,7 @@ def _handoff(
         return None
     return Command(
         target=None,
-        desired_speed=None,
+        desired_speed=params.exit_speed,
         execution=state.execution,
         state=state,
         handoff=True,

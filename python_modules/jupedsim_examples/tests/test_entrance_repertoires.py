@@ -136,6 +136,17 @@ def test_no_handoff_before_door_opens():
     assert not ot.control(closed, state("overtaking", anchor=1)).handoff
 
 
+def test_handoff_sets_exit_speed():
+    o = obs((19.5, 5), [])
+    assert Queueing(PARAMS, WALKABLE).control(o, state()).desired_speed is None
+    params = dataclasses.replace(PARAMS, exit_speed=0.8)
+    for rep, st in (
+        (Queueing(params, WALKABLE), state()),
+        (Overtaking(params, WALKABLE), state("overtaking", anchor=1)),
+    ):
+        assert rep.control(o, st).desired_speed == 0.8
+
+
 def test_passing_point_prefers_closer_free_side():
     own, pred = (14.0, 5.3), agent(1, (15.0, 5.0))
     pp = passing_point(PARAMS, WALKABLE, own, pred, [pred], 0.4)
