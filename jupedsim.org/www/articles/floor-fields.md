@@ -96,6 +96,15 @@ plt.imshow(
 plt.colorbar(label="travel time to the north exit [s]")
 ```
 
+```{figure} floor-fields/travel-time.png
+:alt: Travel time to the north exit over the 20 m by 10 m room, with white contour lines every 2 s and grey arrows for the walking direction
+
+The field of the example, with contour lines every 2 s and one arrow of
+`grid.directions` per metre. The travel time grows with the distance to the
+exit. Near the walls the field assumes slower walking, so the contour lines
+bend and the arrows point away from the wall.
+```
+
 - `grid.values` has shape `(height, width)`, row 0 is the lowest. It is zero inside
   the destination's area and `inf` where a cell is not walkable.
 - `grid.directions` has shape `(height, width, 2)`: the unit vector an agent at the
@@ -193,6 +202,24 @@ while simulation.agent_count() > 0:
 Without the update, 92 of the 96 agents queue at the north-east area, the one
 closest to them, and the room is empty after 22.8 s. With it, 36 agents switch to
 the south-east area once the queue builds up, and the room is empty after 18.3 s.
+
+```{figure} floor-fields/congestion.gif
+:alt: Animation of both runs, one above the other: without the update nearly all agents queue at the north-east area; with it, part of the crowd turns to the south-east area
+
+Both runs, agents marked by the exit area they leave by. The background shows
+the speed field; with the update it is recomputed every 2 s and darkens where
+agents crowd.
+```
+
+```{figure} floor-fields/congestion.png
+:alt: Four panels: travel time to the exit at 8 s without and with the update, the updated speed field at 8 s, and the number of agents in the room over time for both runs
+
+Why agents switch. (a) Without the update the travel time ignores the crowd,
+and 92 of the 96 agents head for the north-east area. (b) With the update the queue
+slows the speed field (c), the travel time through the queue grows, and for the
+agents in the south part of the crowd the south-east area becomes quicker. (d)
+Agents in the room over time.
+```
 
 - **The default speed field** of a region is used by every destination. Use
   `set_default_speed_field(region_id, values)` to change it for all of them.
